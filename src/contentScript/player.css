@@ -1,0 +1,171 @@
+/* Side Player Styles */
+#extension-side-player {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  background-color: #171717;
+  border-radius: 50px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 9998;
+  border: 1px solid #2a2b31;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Position when next to panel */
+#extension-side-player.next-to-panel {
+  right: 370px; /* Positioned to left of panel */
+}
+
+.player-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 3px 0;
+  cursor: pointer;
+  color: #fff;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.player-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.player-button:active {
+  transform: scale(0.95);
+}
+
+.player-button.active {
+  background-color: #5664d2;
+}
+
+.player-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.player-divider {
+  width: 20px;
+  height: 1px;
+  background-color: #333;
+  margin: 4px 0;
+}
+
+.profile-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 4px 0;
+  cursor: pointer;
+  border: 2px solid #333;
+  transition: all 0.2s ease-in-out;
+}
+
+.profile-button:hover {
+  border-color: #5664d2;
+  transform: scale(1.05);
+}
+
+.profile-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.speed-button {
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+  margin: 4px 0;
+  width: 40px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease-in-out;
+}
+
+.speed-button:hover {
+  color: #5664d2;
+}
+
+/* Settings button with red dot indicator */
+.settings-button {
+  position: relative;
+}
+
+.settings-button::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background-color: #ff5252;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(255, 82, 82, 0.5);
+}
+
+.time-display {
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  margin: 4px 0;
+  width: 40px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+  #extension-side-player {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  }
+  
+  .player-button {
+    color: #333;
+  }
+  
+  .player-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .player-divider {
+    background-color: #ddd;
+  }
+  
+  .speed-button {
+    color: #333;
+  }
+  
+  .speed-button:hover {
+    color: #5664d2;
+  }
+  
+  .time-display {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}

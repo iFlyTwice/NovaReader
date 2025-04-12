@@ -1,0 +1,8 @@
+/* Font definitions */
+@font-face {
+  font-family: 'Heiback';
+  src: url('../fonts/Heiback.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

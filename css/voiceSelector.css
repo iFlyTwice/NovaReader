@@ -17,13 +17,13 @@
   overflow-x: hidden;
   transition: right 0.3s ease-in-out; /* Smooth transition for position changes */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  /* Position relative to the player */
-  right: 80px; /* Default: 20px (player right) + 40px (player width) + 20px (gap) */
+  /* Position relative to the player - increased distance */
+  right: 100px; /* Default: 20px (player right) + 60px (player width) + 20px (gap) */
 }
 
 /* When panel is open, the player moves to right: 370px, so voice selector should adjust */
 #extension-voice-selector.panel-open {
-  right: 430px; /* Panel open: 370px (player right) + 40px (player width) + 20px (gap) */
+  right: 450px; /* Panel open: 370px (player right) + 60px (player width) + 20px (gap) */
 }
 
 .voice-selector-header {
@@ -162,18 +162,18 @@
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb {
-  background: #5664d2;
+  background: #27272a; /* Zinc-800 - dark zinc color to match other components */
   border-radius: 10px;
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb:hover {
-  background: #4553c1;
+  background: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
 }
 
 /* Firefox specific - only for voice-selector-list */
 .voice-selector-list {
   scrollbar-width: thin;
-  scrollbar-color: #5664d2 rgba(42, 42, 42, 0.1);
+  scrollbar-color: #27272a rgba(42, 42, 42, 0.1);
 }
 
 .voice-option {
@@ -195,7 +195,7 @@
 }
 
 .voice-option.active {
-  background-color: #5664d2;
+  background-color: #27272a; /* Zinc-800 - dark zinc color to match other components */
 }
 
 .voice-name {
@@ -259,7 +259,7 @@
 }
 
 .voice-selector-save-button {
-  background-color: #5664d2;
+  background-color: #27272a; /* Zinc-800 - dark zinc color to match other components */
   color: white;
   font-size: 14px;
   font-weight: 500;
@@ -271,7 +271,7 @@
 }
 
 .voice-selector-save-button:hover {
-  background-color: #4553c1;
+  background-color: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
 }
 
 .selector-button {

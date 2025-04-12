@@ -19,24 +19,52 @@ export interface Voice {
   accent: string;
 }
 
-// Fetch API key from environment variable using Vite's import.meta.env
-// Vite automatically loads variables prefixed with VITE_ from .env files
-const getApiKey = (): string => {
-  const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY as string;
-  if (!apiKey) {
-    console.error('VITE_ELEVENLABS_API_KEY not found in environment variables');
-    return '';
+import { ELEVENLABS_API_KEY } from '../config';
+
+// Get API key - prioritizing the one from config
+const getApiKey = async (): Promise<string> => {
+  // Always use the key from config file first (direct access)
+  if (ELEVENLABS_API_KEY) {
+    console.log('[ElevenLabsAPI] Using hardcoded API key from config file');
+    
+    // Also save it to storage for future use
+    try {
+      await saveApiKeyToStorage(ELEVENLABS_API_KEY);
+    } catch (saveError) {
+      console.error('[ElevenLabsAPI] Failed to save API key to storage (non-critical):', saveError);
+    }
+    
+    return ELEVENLABS_API_KEY;
   }
-  return apiKey;
+  
+  // Fallback to storage if config key is somehow not available
+  try {
+    const storageKey = await getApiKeyFromStorage();
+    console.log('[ElevenLabsAPI] Using API key from storage');
+    return storageKey;
+  } catch (error) {
+    console.error('[ElevenLabsAPI] Error: No API key available anywhere:', error);
+    throw new Error('API key not available in config or storage');
+  }
+};
+
+// Save API key to storage
+export const saveApiKeyToStorage = async (apiKey: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({ apiKey }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(`Error saving API key: ${chrome.runtime.lastError.message}`));
+      } else {
+        resolve();
+      }
+    });
+  });
 };
 
 // Fetch available voices from ElevenLabs API
 export const fetchElevenLabsVoices = async (): Promise<Voice[]> => {
   try {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error('API key not available');
-    }
+    const apiKey = await getApiKey();
 
     const response = await fetch('https://api.elevenlabs.io/v1/voices', {
       method: 'GET',
@@ -111,10 +139,7 @@ export const fetchElevenLabsVoices = async (): Promise<Voice[]> => {
 // Convert text to speech using ElevenLabs API
 export const textToSpeech = async (text: string, voiceId: string, modelId: string = 'eleven_turbo_v2'): Promise<ArrayBuffer | null> => {
   try {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error('API key not available');
-    }
+    const apiKey = await getApiKey();
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: 'POST',
@@ -147,11 +172,31 @@ export const textToSpeech = async (text: string, voiceId: string, modelId: strin
 // Stream text to speech using ElevenLabs API
 export const streamTextToSpeech = async (text: string, voiceId: string, modelId: string = 'eleven_turbo_v2'): Promise<ReadableStream<Uint8Array> | null> => {
   try {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error('API key not available');
+    console.log('[ElevenLabsAPI] Starting TTS request for text of length:', text.length);
+    console.log('[ElevenLabsAPI] Using voice ID:', voiceId);
+    
+    if (!voiceId || voiceId === 'undefined') {
+      console.error('[ElevenLabsAPI] Invalid voice ID provided');
+      throw new Error('Invalid voice ID provided. Please select a valid voice.');
+    }
+    
+    // Get API Key
+    let apiKey;
+    try {
+      apiKey = await getApiKey();
+      
+      // Basic validation - make sure we have something that looks like an API key
+      if (!apiKey || apiKey.length < 10) {
+        throw new Error('Invalid API key format');
+      }
+      
+      console.log('[ElevenLabsAPI] API key retrieved successfully');
+    } catch (keyError) {
+      console.error('[ElevenLabsAPI] API key error:', keyError);
+      throw new Error(`API key error: ${keyError.message}`);
     }
 
+    console.log(`[ElevenLabsAPI] Making request to ElevenLabs API - Voice ID: ${voiceId}, Model: ${modelId}`);
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
       method: 'POST',
       headers: {
@@ -169,13 +214,59 @@ export const streamTextToSpeech = async (text: string, voiceId: string, modelId:
       }),
     });
 
+    console.log('[ElevenLabsAPI] Response received:', {
+      status: response.status,
+      statusText: response.statusText
+    });
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Check for specific error types
+      if (response.status === 401) {
+        let errorMessage = 'Unauthorized. Check your API key.';
+        try {
+          const errorBody = await response.json();
+          console.log('[ElevenLabsAPI] 401 error details:', errorBody);
+          
+          // Check if this is a quota or unusual activity issue
+          if (errorBody.detail && errorBody.detail.status) {
+            const errorStatus = errorBody.detail.status;
+            if (errorStatus === "detected_unusual_activity" || errorStatus === "quota_exceeded") {
+              errorMessage = `ElevenLabs API Error: ${errorBody.detail.message}`;
+            }
+          }
+        } catch (jsonError) {
+          console.error('[ElevenLabsAPI] Error parsing error response:', jsonError);
+        }
+        throw new Error(errorMessage);
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}, text: ${response.statusText}`);
     }
 
+    if (!response.body) {
+      console.error('[ElevenLabsAPI] Response body is null despite 200 status');
+      throw new Error('Response body is null');
+    }
+
+    console.log('[ElevenLabsAPI] Successfully received stream response');
     return response.body;
   } catch (error) {
-    console.error('Error streaming text to speech:', error);
-    return null;
+    console.error('[ElevenLabsAPI] Error streaming text to speech:', error);
+    throw error; // Re-throw so caller can handle it
   }
+};
+
+// Get API key from Chrome storage instead of environment variables
+// This is more practical for a Chrome extension
+export const getApiKeyFromStorage = async (): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(['apiKey'], function(result) {
+      const apiKey = result.apiKey;
+      if (!apiKey) {
+        reject(new Error('API key not found in storage'));
+      } else {
+        resolve(apiKey);
+      }
+    });
+  });
 };

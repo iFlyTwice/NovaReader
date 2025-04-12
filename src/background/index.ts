@@ -1,8 +1,28 @@
+import { ELEVENLABS_API_KEY, DEFAULT_VOICE_ID } from '../config';
+
 console.log('Background script is running');
 
 // When extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed or updated');
+  
+  if (!ELEVENLABS_API_KEY) {
+    console.error('ERROR: No API key found in config! The extension will not work properly.');
+  } else {
+    console.log('API key found in config, length:', ELEVENLABS_API_KEY.length);
+  }
+  
+  // Save API key to storage immediately
+  chrome.storage.local.set({ 
+    apiKey: ELEVENLABS_API_KEY,
+    selectedVoiceId: DEFAULT_VOICE_ID
+  }, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Error saving API key to storage:', chrome.runtime.lastError);
+    } else {
+      console.log('API key and default voice saved to storage successfully');
+    }
+  });
 });
 
 // Handle messages from content script

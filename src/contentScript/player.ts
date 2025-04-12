@@ -2,14 +2,87 @@
 import { ICONS } from './utils';
 // Import CSS to help Vite track dependencies
 import '../../css/player.css';
+// Import audio player for streaming
+import { AudioStreamPlayer } from './audioPlayer';
 
 export class SidePlayer {
   private playerId: string = 'extension-side-player';
   private isPlaying: boolean = false;
   private playerElement: HTMLElement | null = null;
+  private currentText: string = '';
+  private playButton: HTMLElement | null = null;
+  private timeDisplay: HTMLElement | null = null;
+  
+  // Audio streaming player
+  private audioPlayer: AudioStreamPlayer;
+  
+  // Default voice settings - would be replaced by user settings in production
+  private defaultVoiceId: string = '21m00Tcm4TlvDq8ikWAM'; // Example: Adam voice
+  private defaultModelId: string = 'eleven_turbo_v2';
 
   constructor() {
-    // No need to inject styles separately as they're included in manifest
+    // Initialize the audio player
+    this.audioPlayer = new AudioStreamPlayer();
+    
+    // Set up callbacks for audio player events
+    this.audioPlayer.setCallbacks({
+      onPlaybackStart: () => this.handlePlaybackStart(),
+      onPlaybackEnd: () => this.handlePlaybackEnd(),
+      onPlaybackError: (error) => this.handlePlaybackError(error),
+      onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+    });
+  }
+  
+  // Audio player event handlers
+  private handlePlaybackStart(): void {
+    this.isPlaying = true;
+    if (this.playButton) {
+      // Add active class
+      this.playButton.classList.add('active');
+      
+      // Change icon to stop
+      this.playButton.innerHTML = ICONS.stop;
+    }
+    
+    // Dispatch event to update selection button state
+    this.dispatchSelectionButtonStateEvent('speaking');
+  }
+  
+  private handlePlaybackEnd(): void {
+    this.isPlaying = false;
+    if (this.playButton) {
+      // Remove active class
+      this.playButton.classList.remove('active');
+      
+      // Change icon back to play
+      this.playButton.innerHTML = ICONS.play;
+    }
+    
+    // Dispatch event to update selection button state
+    this.dispatchSelectionButtonStateEvent('play');
+  }
+  
+  private handlePlaybackError(error: string): void {
+    console.error('Playback error:', error);
+    // Notify user of the error?
+    this.handlePlaybackEnd(); // Reset state
+  }
+  
+  private updateTimeDisplay(currentTime: number, duration: number): void {
+    if (this.timeDisplay) {
+      const minutes = Math.floor(currentTime / 60);
+      const seconds = Math.floor(currentTime % 60);
+      
+      // If duration is known, show time as current/total
+      if (duration && !isNaN(duration)) {
+        const totalMinutes = Math.floor(duration / 60);
+        const totalSeconds = Math.floor(duration % 60);
+        this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}/${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+      } else {
+        // Otherwise just show current time
+        this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    }
   }
 
   public create(nextToPanel: boolean = false): void {
@@ -30,14 +103,26 @@ export class SidePlayer {
     // Add time display
     const timeDisplay = document.createElement('div');
     timeDisplay.className = 'time-display';
-    timeDisplay.textContent = '4:26';
+    timeDisplay.textContent = '0:00';
+    this.timeDisplay = timeDisplay;
     
     // Play button
     const playButton = this.createButton('play', 'Play/Pause', () => {
-      this.isPlaying = !this.isPlaying;
-      playButton.classList.toggle('active', this.isPlaying);
-      console.log('Play/Pause clicked');
+      if (this.isPlaying) {
+        this.stopPlayback();
+      } else if (this.currentText) {
+        this.startPlayback(this.currentText);
+      } else {
+        // Try to get selected text if no current text
+        const selectedText = window.getSelection()?.toString().trim();
+        if (selectedText) {
+          this.startPlayback(selectedText);
+        } else {
+          console.log('No text selected or stored');
+        }
+      }
     });
+    this.playButton = playButton;
     
     // Thumbs down button (dislike)
     const thumbsDownButton = this.createButton('thumbsDown', 'Dislike', () => {
@@ -84,9 +169,14 @@ export class SidePlayer {
       this.addClickEffect(closeButton);
     });
     
+    // Create a divider for after the play button
+    const dividerAfterPlay = document.createElement('div');
+    dividerAfterPlay.className = 'player-divider';
+    
     // Append all elements to player in the order shown in the screenshot
     player.appendChild(timeDisplay);
     player.appendChild(playButton);
+    player.appendChild(dividerAfterPlay); // Add divider after play button
     player.appendChild(thumbsDownButton);
     player.appendChild(screenshotButton);
     player.appendChild(selectVoiceButton);
@@ -141,5 +231,86 @@ export class SidePlayer {
         player.classList.remove('next-to-panel');
       }
     }
+  }
+  
+  // Method to handle text playback
+  public async startPlayback(text: string): Promise<void> {
+    if (!text.trim()) {
+      console.warn('No text provided for playback');
+      return;
+    }
+    
+    this.currentText = text;
+    
+    try {
+      // First, get the selected voice from storage (or use default if not found)
+      const voiceId = await this.getSelectedVoice();
+      const modelId = this.defaultModelId;
+      
+      console.log('[SidePlayer] Starting playback with:', { 
+        textLength: text.length, 
+        voiceId, 
+        modelId 
+      });
+      
+      // Update selection button to loading state
+      this.dispatchSelectionButtonStateEvent('loading');
+      
+      // Start playback with the audioPlayer
+      await this.audioPlayer.playText(text, voiceId, modelId);
+    } catch (error) {
+      console.error('[SidePlayer] Error starting playback:', error);
+      this.handlePlaybackError(`Failed to start playback: ${error}`);
+    }
+  }
+  
+  // Get the user's selected voice from Chrome storage
+  private async getSelectedVoice(): Promise<string> {
+    try {
+      // Get voice from Chrome storage
+      return new Promise<string>((resolve) => {
+        chrome.storage.local.get(['selectedVoiceId'], (result) => {
+          if (result && result.selectedVoiceId) {
+            console.log('[SidePlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
+            resolve(result.selectedVoiceId);
+          } else {
+            console.log('[SidePlayer] No voice ID in storage, using default:', this.defaultVoiceId);
+            resolve(this.defaultVoiceId);
+          }
+        });
+      });
+    } catch (error) {
+      console.error('[SidePlayer] Error getting selected voice:', error);
+      return this.defaultVoiceId;
+    }
+  }
+  
+  public stopPlayback(): void {
+    this.audioPlayer.stopPlayback();
+  }
+  
+  // Set playback speed (could be connected to a speed control in UI)
+  public setPlaybackSpeed(speed: number): void {
+    this.audioPlayer.setPlaybackSpeed(speed);
+  }
+  
+  private dispatchSelectionButtonStateEvent(state: 'play' | 'loading' | 'speaking'): void {
+    const event = new CustomEvent('selection-button-state', {
+      detail: { state }
+    });
+    document.dispatchEvent(event);
+  }
+  
+  // Method to handle selection button events
+  public setupSelectionPlaybackListener(): void {
+    document.addEventListener('selection-playback', (event: any) => {
+      const { action, text } = event.detail;
+      
+      if (action === 'play' && text) {
+        this.startPlayback(text);
+      } else if (action === 'stop') {
+        this.stopPlayback();
+      }
+    });
   }
 }

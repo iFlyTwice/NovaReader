@@ -57,7 +57,7 @@
   font-size: 24px;
   font-weight: normal;
   color: #fff;
-  font-family: 'Heiback', sans-serif !important;
+  font-family: 'Heiback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   letter-spacing: 1px;
 }
 
@@ -102,7 +102,7 @@
   font-weight: normal;
   margin-bottom: 12px;
   color: #ccc;
-  font-family: 'Heiback', sans-serif;
+  font-family: 'Heiback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   letter-spacing: 0.5px;
 }
 
@@ -110,6 +110,58 @@
   font-size: 14px;
   color: #aaa;
   line-height: 1.5;
+}
+
+/* API Key section */
+.api-key-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#api-key-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #fff;
+  padding: 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+#api-key-input:focus {
+  border-color: rgba(86, 100, 210, 0.5);
+  box-shadow: 0 0 0 2px rgba(86, 100, 210, 0.2);
+}
+
+#save-api-key {
+  background-color: #5664d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-self: flex-start;
+}
+
+#save-api-key:hover {
+  background-color: #4553c1;
+}
+
+.api-key-status {
+  font-size: 12px;
+  height: 20px;
+  margin-top: 4px;
+}
+
+.api-key-status.success {
+  color: #4cd964;
+}
+
+.api-key-status.error {
+  color: #ff3b30;
 }
 
 .nav-menu {

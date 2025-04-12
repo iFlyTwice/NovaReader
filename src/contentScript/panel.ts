@@ -34,7 +34,7 @@ export class SidePanel {
         </div>
         <div class="nav-item">
           <span class="nav-item-icon">${ICONS.headphones}</span>
-          Click to Listen
+          Highlight to Listen
         </div>
         <div class="nav-item">
           <span class="nav-item-icon">${ICONS.user}</span>
@@ -71,9 +71,11 @@ export class SidePanel {
         <div class="panel-section">
           <div class="panel-section-title">Tips</div>
           <div class="panel-section-content">
-            Try clicking on text while in "Click to Listen" mode to have it read aloud.
+            Try highlighting any text on the page and click the play button that appears to have it read aloud.
           </div>
         </div>
+        
+
       </div>
     `;
   }

@@ -34,7 +34,8 @@ export default defineManifest({
         'css/fonts.css', 
         'css/player.css', 
         'css/panel.css', 
-        'css/voiceSelector.css'
+        'css/voiceSelector.css',
+        'css/selectionButton.css'
       ]
     },
   ],
@@ -53,7 +54,11 @@ export default defineManifest({
         'css/panel.css',
         'css/fonts.css',
         'css/voiceSelector.css',
-        'fonts/Heiback.otf'
+        'css/selectionButton.css',
+        'fonts/Heiback.otf',
+        'assets/play.svg',
+        'assets/stop.svg',
+        'assets/spinner.svg'
       ],
       matches: ['<all_urls>'],
     },

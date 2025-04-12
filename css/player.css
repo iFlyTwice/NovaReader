@@ -6,7 +6,7 @@
   transform: translateY(-50%);
   background-color: #171717;
   border-radius: 50px;
-  padding: 8px 0;
+  padding: 8px 10px; /* Added horizontal padding (10px left and right) */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -17,6 +17,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   transition: right 0.3s ease-in-out; /* Smooth transition for position changes */
+  width: 60px; /* Set a fixed width to make it a bit wider */
 }
 
 /* Position when next to panel */
@@ -49,7 +50,23 @@
 }
 
 .player-button.active {
-  background-color: #5664d2;
+  background-color: #27272a; /* Zinc-800 - much darker zinc color */
+}
+
+/* Add visible background to all player buttons from the start */
+.player-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 3px 0;
+  cursor: pointer;
+  color: #fff;
+  background-color: #3f3f46; /* Zinc-700 - visible but slightly lighter than active */
+  transition: all 0.2s ease-in-out;
+  position: relative;
 }
 
 .player-button svg {
@@ -123,18 +140,21 @@
 }
 
 .time-display {
-  font-size: 12px;
+  font-size: 9px; /* Even smaller font size */
   font-weight: bold;
   color: #fff;
   margin: 4px 0;
-  width: 40px;
-  height: 20px;
+  width: 40px; /* Original width */
+  height: 20px; /* Original height */
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 10px; /* Original radius */
   margin-bottom: 6px;
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Keep text on one line */
 }
 
 /* Light theme */

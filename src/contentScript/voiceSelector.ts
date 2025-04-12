@@ -4,6 +4,8 @@ import { ICONS } from './utils';
 import '../../css/voiceSelector.css';
 // Import ElevenLabs API
 import { fetchElevenLabsVoices, Voice } from './elevenLabsApi';
+// Import voice IDs from config
+import { VOICE_IDS } from '../config';
 
 export class VoiceSelector {
   private selectorId: string = 'extension-voice-selector';
@@ -13,13 +15,12 @@ export class VoiceSelector {
   // Voice options from ElevenLabs
   private voices: Voice[] = [];
   
-  // Fallback voices in case API call fails
+  // Fallback voices with real ElevenLabs voice IDs
   private fallbackVoices: Voice[] = [
-    { id: 'voice1', name: 'David', gender: 'Male', accent: 'American' },
-    { id: 'voice2', name: 'Emma', gender: 'Female', accent: 'British' },
-    { id: 'voice3', name: 'James', gender: 'Male', accent: 'British' },
-    { id: 'voice4', name: 'Sofia', gender: 'Female', accent: 'American' },
-    { id: 'voice5', name: 'Hiroshi', gender: 'Male', accent: 'Japanese' }
+    { id: VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
+    { id: VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
+    { id: VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
+    { id: VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
   ];
   
   constructor() {
@@ -255,14 +256,30 @@ export class VoiceSelector {
       const selectedVoice = document.querySelector('.voice-option.active');
       if (selectedVoice) {
         const voiceId = selectedVoice.getAttribute('data-voice-id');
-        console.log(`Saving selected voice: ${voiceId}`);
-        // Here you would save the selection
-        
-        // Close the selector
-        this.remove();
+        if (voiceId) {
+          console.log(`Saving selected voice: ${voiceId}`);
+          
+          // Save the selection to Chrome storage
+          chrome.storage.local.set({ selectedVoiceId: voiceId }, () => {
+            console.log('Voice selection saved to storage');
+            
+            // Dispatch an event to notify other components of the voice change
+            const event = new CustomEvent('voice-selected', { 
+              detail: { voiceId } 
+            });
+            document.dispatchEvent(event);
+            
+            // Close the selector
+            this.remove();
+          });
+        }
       } else {
         console.log('No voice selected');
-        // Perhaps show a message to the user
+        // Visual feedback that no voice is selected
+        saveButton.classList.add('error');
+        setTimeout(() => {
+          saveButton.classList.remove('error');
+        }, 500);
       }
     });
     

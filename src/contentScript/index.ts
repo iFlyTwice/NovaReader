@@ -1,12 +1,18 @@
 import { SidePlayer } from './player';
 import { SidePanel } from './panel';
+import { VoiceSelector } from './voiceSelector';
 import { addKeyboardShortcuts } from './utils';
+
+// Import global CSS files to help Vite track dependencies
+import '../../css/fonts.css';
 
 // Initialize main controller
 class ExtensionController {
   private player: SidePlayer;
   private panel: SidePanel;
+  private voiceSelector: VoiceSelector;
   private isPanelOpen: boolean = false;
+  private isVoiceSelectorOpen: boolean = false;
 
   constructor() {
     console.info('ContentScript is running');
@@ -14,6 +20,7 @@ class ExtensionController {
     // Initialize components
     this.player = new SidePlayer();
     this.panel = new SidePanel();
+    this.voiceSelector = new VoiceSelector();
     
     // Setup event listeners
     this.setupMessageListeners();
@@ -42,6 +49,26 @@ class ExtensionController {
     document.addEventListener('toggle-panel', () => {
       this.togglePanel();
     });
+    
+    // Listen for voice selector toggle event
+    document.addEventListener('toggle-voice-selector', () => {
+      this.toggleVoiceSelector();
+    });
+  }
+  
+  private toggleVoiceSelector(): void {
+    // If voice selector is already open, just remove it
+    if (this.isVoiceSelectorOpen) {
+      this.voiceSelector.remove();
+      this.isVoiceSelectorOpen = false;
+      return;
+    }
+    
+    // Create voice selector
+    this.voiceSelector.create(this.isPanelOpen);
+    this.isVoiceSelectorOpen = true;
+    
+    console.log(`Voice selector created. Panel open: ${this.isPanelOpen}`);
   }
 
   private setupKeyboardShortcuts(): void {
@@ -69,6 +96,20 @@ class ExtensionController {
           player.classList.remove('next-to-panel');
         }, 50);
       }
+    }
+    
+    // If voice selector is open, update its position
+    const voiceSelector = document.getElementById('extension-voice-selector');
+    if (voiceSelector) {
+      if (this.isPanelOpen) {
+        voiceSelector.classList.add('panel-open');
+      } else {
+        // Wait for the panel animation to finish before moving the voice selector back
+        setTimeout(() => {
+          voiceSelector.classList.remove('panel-open');
+        }, 50);
+      }
+      console.log(`Voice selector position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
     }
   }
   

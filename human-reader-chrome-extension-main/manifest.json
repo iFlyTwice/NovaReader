@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Human Reader, powered by ElevenLabs",
+  "version": "1.7",
+  "description": "Listen to any text in the web in a human voice. A simple extension powered by ElevenLabs to convert any text to speech.",
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["style.css"]
+    }
+  ],
+  "host_permissions": ["<all_urls>"],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "images/play.svg",
+        "images/spinner.svg",
+        "images/speak.svg",
+        "images/stop.svg",
+        "media/error-no-api-key.mp3"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "permissions": ["storage", "contextMenus"],
+
+  "background": {
+    "service_worker": "background.js",
+    "persistent": false
+  }
+}

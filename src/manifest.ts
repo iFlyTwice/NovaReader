@@ -30,7 +30,12 @@ export default defineManifest({
     {
       matches: ['http://*/*', 'https://*/*'],
       js: ['src/contentScript/index.ts'],
-      css: ['css/fonts.css', 'css/player.css', 'css/panel.css']
+      css: [
+        'css/fonts.css', 
+        'css/player.css', 
+        'css/panel.css', 
+        'css/voiceSelector.css'
+      ]
     },
   ],
   side_panel: {
@@ -47,6 +52,7 @@ export default defineManifest({
         'css/player.css',
         'css/panel.css',
         'css/fonts.css',
+        'css/voiceSelector.css',
         'fonts/Heiback.otf'
       ],
       matches: ['<all_urls>'],

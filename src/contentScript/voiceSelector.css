@@ -1,0 +1,271 @@
+/* Voice Selector Styles */
+#extension-voice-selector {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #1c1c1c;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 9997; /* Just below the player */
+  border: 1px solid #2a2b31;
+  width: 280px;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: right 0.3s ease-in-out; /* Smooth transition for position changes */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  /* Always position relative to the player */
+  right: 80px; /* Default: 20px (player right) + 40px (player width) + 20px (gap) */
+}
+
+/* When panel is open, the player moves to right: 370px, so voice selector should adjust */
+#extension-voice-selector.panel-open {
+  right: 430px; /* Panel open: 370px (player right) + 40px (player width) + 20px (gap) */
+}
+
+.voice-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.voice-selector-title {
+  font-size: 18px;
+  font-weight: normal;
+  color: #fff;
+  font-family: 'Heiback', sans-serif !important;
+  letter-spacing: 1px;
+}
+
+.voice-selector-close-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.voice-selector-close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.voice-selector-close-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.voice-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for voice-selector-list only */
+.voice-selector-list::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.voice-selector-list::-webkit-scrollbar-track {
+  background: rgba(42, 42, 42, 0.1);
+  border-radius: 10px;
+  margin: 3px 0;
+}
+
+.voice-selector-list::-webkit-scrollbar-thumb {
+  background: #5664d2;
+  border-radius: 10px;
+}
+
+.voice-selector-list::-webkit-scrollbar-thumb:hover {
+  background: #4553c1;
+}
+
+/* Firefox specific - only for voice-selector-list */
+.voice-selector-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5664d2 rgba(42, 42, 42, 0.1);
+}
+
+.voice-option {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #2a2a2a;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.voice-option:hover {
+  background-color: #333;
+}
+
+.voice-option.active {
+  background-color: #5664d2;
+}
+
+.voice-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.voice-details {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.voice-option.active .voice-details {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.voice-play-button {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.voice-play-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.voice-play-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.voice-selector-save-button {
+  background-color: #5664d2;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.voice-selector-save-button:hover {
+  background-color: #4553c1;
+}
+
+.selector-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.selector-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.selector-button svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+  #extension-voice-selector {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  }
+  
+  .voice-selector-header {
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .voice-selector-title {
+    color: #333;
+  }
+  
+  .voice-selector-close-button {
+    color: #333;
+  }
+  
+  .voice-selector-close-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .voice-option {
+    background-color: #e8e8e8;
+  }
+  
+  .voice-option:hover {
+    background-color: #dedede;
+  }
+  
+  .voice-option.active {
+    background-color: #5664d2;
+  }
+  
+  .voice-name {
+    color: #333;
+  }
+  
+  .voice-details {
+    color: #666;
+  }
+  
+  .voice-option.active .voice-name,
+  .voice-option.active .voice-details {
+    color: #fff;
+  }
+  
+  .voice-play-button {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .voice-play-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .selector-button {
+    color: #333;
+  }
+  
+  .selector-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}

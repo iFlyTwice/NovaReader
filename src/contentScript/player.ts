@@ -1,5 +1,7 @@
 // SVG Icons
 import { ICONS } from './utils';
+// Import CSS to help Vite track dependencies
+import '../../css/player.css';
 
 export class SidePlayer {
   private playerId: string = 'extension-side-player';
@@ -51,11 +53,14 @@ export class SidePlayer {
       this.addClickEffect(screenshotButton);
     });
     
-    // Waveform button
-    const waveformButton = this.createButton('waveform', 'Audio Waveform', () => {
-      console.log('Waveform clicked');
+    // Select Voice button (replaces Waveform button)
+    const selectVoiceButton = this.createButton('waveform', 'Select Voice', () => {
+      console.log('Select Voice clicked');
+      // Dispatch event to toggle voice selector
+      const event = new CustomEvent('toggle-voice-selector');
+      document.dispatchEvent(event);
       // Add visual feedback
-      this.addClickEffect(waveformButton);
+      this.addClickEffect(selectVoiceButton);
     });
     
     // Settings button (with red dot)
@@ -84,7 +89,7 @@ export class SidePlayer {
     player.appendChild(playButton);
     player.appendChild(thumbsDownButton);
     player.appendChild(screenshotButton);
-    player.appendChild(waveformButton);
+    player.appendChild(selectVoiceButton);
     player.appendChild(settingsButton);
     player.appendChild(divider1);
     player.appendChild(closeButton);

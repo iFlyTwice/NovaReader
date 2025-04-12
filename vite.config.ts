@@ -14,9 +14,28 @@ export default defineConfig(({ mode }) => {
         output: {
           chunkFileNames: 'assets/chunk-[hash].js',
         },
+        watch: {
+          include: ['src/**', 'css/**'],
+          buildDelay: 100,
+          clearScreen: false
+        }
       },
     },
-    plugins: [crx({ manifest }), react()],
+    plugins: [
+      crx({ 
+        manifest,
+        watchOptions: {
+          polling: 1000
+        }
+      }), 
+      react()
+    ],
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 1000
+      }
+    },
     legacy: {
       skipWebSocketTokenCheck: true,
     },

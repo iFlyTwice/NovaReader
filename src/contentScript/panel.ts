@@ -1,5 +1,7 @@
 // SVG Icons
 import { ICONS } from './utils';
+// Import CSS to help Vite track dependencies
+import '../../css/panel.css';
 
 export class SidePanel {
   private panelId: string = 'extension-side-panel';

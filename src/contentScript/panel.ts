@@ -6,7 +6,8 @@ import '../../css/panel.css';
 import '../../css/auth.css';
 
 // Import Supabase client and auth functions
-import { supabase, signIn, signUp, signOut, resetPassword, getUser, saveUserPreferences, getReadingStats, signInWithGoogle } from '../supabase/client';
+import { supabase, signIn, signUp, signOut, resetPassword, getUser, saveUserPreferences, getReadingStats, signInWithGoogle, getUserPreferences } from '../supabase/client';
+import { includeTopPlayerInPreferences } from '../supabase/topPlayerSettings';
 
 export class SidePanel {
   private panelId: string = 'extension-side-panel';
@@ -244,6 +245,20 @@ export class SidePanel {
             <button id="save-api-key" class="btn-primary">Save Key</button>
             <div class="api-key-status"></div>
           </div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <div class="panel-section-title">UI Settings</div>
+        <div class="panel-section-content">
+          <div class="switch-container">
+            <span class="switch-label">Show Top Player</span>
+            <label class="switch">
+              <input type="checkbox" id="top-player-toggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <p class="small-text">The top player provides easy access to play the entire page.</p>
         </div>
       </div>
       
@@ -583,6 +598,34 @@ export class SidePanel {
         // Set user email
         if (userEmailElement && user.email) {
           userEmailElement.textContent = user.email;
+        }
+        
+        // Load user preferences
+        try {
+          const { preferences, error } = await getUserPreferences(user.id);
+          
+          if (!error && preferences && preferences.preferences) {
+            const userPrefs = preferences.preferences;
+            
+            // Update local storage with user preferences
+            chrome.storage.local.set({
+              apiKey: userPrefs.apiKey || '',
+              selectedModel: userPrefs.selectedModel || 'eleven_turbo_v2',
+              playbackSpeed: userPrefs.playbackSpeed || 1.0,
+              highlightEnabled: userPrefs.highlightEnabled !== undefined ? userPrefs.highlightEnabled : true,
+              selectionButtonColor: userPrefs.selectionButtonColor || '#27272a',
+              topPlayerEnabled: userPrefs.topPlayerEnabled !== undefined ? userPrefs.topPlayerEnabled : true
+            }, () => {
+              console.log('[Auth] User preferences loaded from database');
+              
+              // Dispatch events to update UI components
+              this.updateHighlightingState(userPrefs.highlightEnabled !== undefined ? userPrefs.highlightEnabled : true);
+              this.updateSelectionButtonColor(userPrefs.selectionButtonColor || '#27272a');
+              this.updateTopPlayerVisibility(userPrefs.topPlayerEnabled !== undefined ? userPrefs.topPlayerEnabled : true);
+            });
+          }
+        } catch (prefsError) {
+          console.error('[Auth] Error loading user preferences:', prefsError);
         }
         
         // Update reading stats if available
@@ -998,11 +1041,18 @@ export class SidePanel {
             'selectedModel',
             'playbackSpeed',
             'highlightEnabled',
-            'selectionButtonColor'
+            'selectionButtonColor',
+            'topPlayerEnabled'
           ], async (settings) => {
             try {
+              // Make sure the top player setting is included in preferences
+              const updatedSettings = includeTopPlayerInPreferences(
+                settings, 
+                settings.topPlayerEnabled !== undefined ? settings.topPlayerEnabled : true
+              );
+              
               // Save settings to Supabase
-              const { error } = await saveUserPreferences(user.id, settings);
+              const { error } = await saveUserPreferences(user.id, updatedSettings);
               
               if (error) {
                 throw error;
@@ -1045,6 +1095,9 @@ export class SidePanel {
       const speedSlider = panel.querySelector('#speed-slider') as HTMLInputElement;
       const speedValue = panel.querySelector('#speed-value') as HTMLElement;
       
+      // UI settings
+      const topPlayerToggle = panel.querySelector('#top-player-toggle') as HTMLInputElement;
+      
       // Highlight to Listen settings
       const highlightToggle = panel.querySelector('#highlight-toggle') as HTMLInputElement;
       const selectionColorPicker = panel.querySelector('#selection-button-color') as HTMLInputElement;
@@ -1057,7 +1110,8 @@ export class SidePanel {
         'selectedModel', 
         'playbackSpeed', 
         'highlightEnabled', 
-        'selectionButtonColor'
+        'selectionButtonColor',
+        'topPlayerEnabled'
       ], (result) => {
         // API Key
         if (result.apiKey && apiKeyInput) {
@@ -1094,6 +1148,16 @@ export class SidePanel {
           }
           // Update the selection button color
           this.updateSelectionButtonColor(result.selectionButtonColor);
+        }
+        
+        // Top player toggle
+        if (topPlayerToggle) {
+          // Default to enabled if not set
+          const topPlayerEnabled = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+          topPlayerToggle.checked = topPlayerEnabled;
+          
+          // Dispatch initial event to update the top player visibility
+          this.updateTopPlayerVisibility(topPlayerEnabled);
         }
       });
       
@@ -1168,6 +1232,25 @@ export class SidePanel {
         });
       }
       
+      // Top player toggle
+      if (topPlayerToggle) {
+        topPlayerToggle.addEventListener('change', () => {
+          const isEnabled = topPlayerToggle.checked;
+          console.log(`[Panel] Top player toggle changed to: ${isEnabled ? 'enabled' : 'disabled'}`);
+          
+          // Immediately update the UI to match
+          topPlayerToggle.checked = isEnabled;
+          
+          // Save to storage with callback to ensure it's saved
+          chrome.storage.local.set({ topPlayerEnabled: isEnabled }, () => {
+            console.log(`[Panel] Top player visibility saved to storage: ${isEnabled ? 'enabled' : 'disabled'}`);
+            
+            // Dispatch the event to update the top player visibility
+            this.updateTopPlayerVisibility(isEnabled);
+          });
+        });
+      }
+      
       // Color picker
       if (selectionColorPicker && colorPreview) {
         selectionColorPicker.addEventListener('input', () => {
@@ -1190,7 +1273,8 @@ export class SidePanel {
           // Default values
           const defaults = {
             highlightEnabled: true,
-            selectionButtonColor: '#27272a'
+            selectionButtonColor: '#27272a',
+            topPlayerEnabled: true
           };
           
           // Reset in storage
@@ -1201,10 +1285,12 @@ export class SidePanel {
             if (highlightToggle) highlightToggle.checked = defaults.highlightEnabled;
             if (selectionColorPicker) selectionColorPicker.value = defaults.selectionButtonColor;
             if (colorPreview) colorPreview.style.backgroundColor = defaults.selectionButtonColor;
+            if (topPlayerToggle) topPlayerToggle.checked = defaults.topPlayerEnabled;
             
             // Update actual components
             this.updateHighlightingState(defaults.highlightEnabled);
             this.updateSelectionButtonColor(defaults.selectionButtonColor);
+            this.updateTopPlayerVisibility(defaults.topPlayerEnabled);
           });
         });
       }
@@ -1223,6 +1309,14 @@ export class SidePanel {
   private updateSelectionButtonColor(color: string): void {
     const event = new CustomEvent('update-selection-button-color', {
       detail: { color }
+    });
+    document.dispatchEvent(event);
+  }
+  
+  // Update the top player visibility
+  private updateTopPlayerVisibility(isVisible: boolean): void {
+    const event = new CustomEvent('update-top-player-visibility', {
+      detail: { visible: isVisible }
     });
     document.dispatchEvent(event);
   }

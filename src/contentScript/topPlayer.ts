@@ -42,6 +42,40 @@ export class TopPlayer {
     
     // Set up listener for voice selection changes
     this.setupVoiceSelectionListener();
+    
+    // Set up listener for visibility changes
+    this.setupVisibilityListener();
+    
+    // Check initial visibility setting
+    this.checkInitialVisibility();
+  }
+  
+  // Listen for visibility toggle events
+  private setupVisibilityListener(): void {
+    document.addEventListener('update-top-player-visibility', (event: any) => {
+      const { visible } = event.detail;
+      console.log(`📖 [TopPlayer] Visibility update received: ${visible ? 'show' : 'hide'}`);
+      
+      if (visible && !this.isVisible) {
+        this.show();
+      } else if (!visible) {
+        this.remove(); // Use remove instead of hide to fully remove it from DOM
+      }
+    });
+  }
+  
+  // Check the initial visibility setting from storage
+  private checkInitialVisibility(): void {
+    chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+      // Default to true if setting doesn't exist
+      const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+      console.log(`📖 [TopPlayer] Initial visibility from storage: ${isVisible ? 'visible' : 'hidden'}`);
+      
+      if (!isVisible && this.playerElement) {
+        // If player exists but should be hidden, remove it
+        this.remove();
+      }
+    });
   }
   
   // Listen for voice selection changes
@@ -1029,25 +1063,60 @@ export class TopPlayer {
   }
   
   public toggle(): void {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+      // Default to true if setting doesn't exist
+      const currentVisibility = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+      const newVisibility = !currentVisibility;
+      
+      // Save new setting
+      chrome.storage.local.set({ topPlayerEnabled: newVisibility }, () => {
+        console.log(`📖 [TopPlayer] Visibility toggled to: ${newVisibility ? 'visible' : 'hidden'}`);
+        
+        // Update visibility
+        if (newVisibility) {
+          this.show();
+        } else {
+          this.remove();
+        }
+      });
+    });
   }
   
   public hide(): void {
+    console.log('📖 [TopPlayer] Hiding top player');
+    
     if (!this.playerElement) return;
     
-    this.playerElement.style.display = 'none';
-    this.isVisible = false;
+    // Add fade-out animation for better UX
+    this.playerElement.style.transition = 'opacity 0.3s ease';
+    this.playerElement.style.opacity = '0';
+    
+    // After animation completes, remove from DOM
+    setTimeout(() => {
+      if (this.playerElement && this.playerElement.parentNode) {
+        this.playerElement.parentNode.removeChild(this.playerElement);
+        this.playerElement = null;
+      }
+      this.isVisible = false;
+    }, 300);
   }
   
   public show(): void {
+    console.log('📖 [TopPlayer] Showing top player');
+    
     if (!this.playerElement) {
       this.create();
     } else {
+      // If player exists but is hidden, show it with animation
       this.playerElement.style.display = 'block';
+      this.playerElement.style.opacity = '0';
+      
+      // Force reflow for animation
+      void this.playerElement.offsetWidth;
+      
+      // Fade in
+      this.playerElement.style.transition = 'opacity 0.3s ease';
+      this.playerElement.style.opacity = '1';
       this.isVisible = true;
     }
   }

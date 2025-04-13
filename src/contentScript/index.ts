@@ -4,6 +4,7 @@ import { VoiceSelector } from './voiceSelector';
 import { SelectionButton } from './selectionButton';
 import { TopPlayer } from './topPlayer';
 import { addKeyboardShortcuts } from './utils';
+import initializeTopPlayerPrefs from './topPlayerPrefsLoader';
 
 // Import global CSS files to help Vite track dependencies
 import '../../css/fonts.css';
@@ -42,6 +43,9 @@ class ExtensionController {
     // Listen for selection button state changes
     this.setupSelectionButtonStateListener();
     
+    // Initialize top player preferences
+    initializeTopPlayerPrefs();
+    
     // Create the side player immediately
     setTimeout(() => {
       this.player.create();
@@ -49,24 +53,33 @@ class ExtensionController {
       // For the top player, wait for the page to be more fully loaded before creating it
       // This prevents the jumping/repositioning issue
       const createTopPlayer = () => {
-        // Check if we're on Coursera and wait for the reading-title to be available
-        const hostname = window.location.hostname;
-        if (hostname.includes('coursera.org')) {
-          const readingTitle = document.querySelector('div.reading-title');
-          if (readingTitle) {
-            // Reading title found, create the player
-            this.topPlayer.create();
+        // First check if top player should be visible based on user settings
+        chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+          // If the setting is explicitly false, don't create the top player
+          if (result.topPlayerEnabled === false) {
+            console.log('📖 [TopPlayer] Not creating top player as it is disabled in settings');
             return;
           }
           
-          // If not found yet, try again after a short delay
-          setTimeout(createTopPlayer, 100);
-        } else {
-          // Not Coursera, create the player after a short delay to allow page to load
-          setTimeout(() => {
-            this.topPlayer.create();
-          }, 200);
-        }
+          // Check if we're on Coursera and wait for the reading-title to be available
+          const hostname = window.location.hostname;
+          if (hostname.includes('coursera.org')) {
+            const readingTitle = document.querySelector('div.reading-title');
+            if (readingTitle) {
+              // Reading title found, create the player
+              this.topPlayer.create();
+              return;
+            }
+            
+            // If not found yet, try again after a short delay
+            setTimeout(createTopPlayer, 100);
+          } else {
+            // Not Coursera, create the player after a short delay to allow page to load
+            setTimeout(() => {
+              this.topPlayer.create();
+            }, 200);
+          }
+        });
       };
       
       // Start the process after a small delay

@@ -804,6 +804,8 @@ export class TopPlayer {
     const chunks: string[] = [];
     let start = 0;
     
+    console.log(`[TopPlayer] Chunking text of length ${text.length} into pieces of max ${this.MAX_CHUNK_LENGTH} characters`);
+    
     while (start < text.length) {
       // Find a good breaking point near the max chunk size
       let end = Math.min(start + this.MAX_CHUNK_LENGTH, text.length);
@@ -832,7 +834,12 @@ export class TopPlayer {
       }
       
       // Extract the chunk and add it to the list
-      chunks.push(text.substring(start, end));
+      const chunk = text.substring(start, end);
+      chunks.push(chunk);
+      
+      console.log(`[TopPlayer] Created chunk ${chunks.length}: ${start}-${end} (length: ${chunk.length})`);
+      
+      // Move to the next chunk
       start = end;
     }
     
@@ -852,6 +859,13 @@ export class TopPlayer {
     
     const chunk = this.currentParagraphChunks[this.currentChunkIndex];
     console.log(`[TopPlayer] Playing chunk ${this.currentChunkIndex + 1}/${this.currentParagraphChunks.length}, length: ${chunk.length}`);
+    
+    // Track the position in the original text for this chunk
+    const overallPosition = this.currentParagraphChunks
+      .slice(0, this.currentChunkIndex)
+      .reduce((sum, chunkText) => sum + chunkText.length, 0);
+    
+    console.log(`[TopPlayer] Starting from character position ${overallPosition} in the complete text`);
     
     // Set up callback to play the next chunk when this one finishes
     this.audioPlayer.setCallbacks({
@@ -875,13 +889,24 @@ export class TopPlayer {
   private handleChunkEnd(): void {
     console.log('[TopPlayer] Chunk playback ended');
     
+    // Get the current chunk for logging
+    const currentChunk = this.currentParagraphChunks[this.currentChunkIndex];
+    
     // Move to the next chunk
     this.currentChunkIndex++;
     
-    // Play the next chunk with a small delay
+    // Calculate the next chunk's position
+    const nextChunkPosition = this.currentParagraphChunks
+      .slice(0, this.currentChunkIndex)
+      .reduce((sum, chunkText) => sum + chunkText.length, 0);
+    
+    console.log(`[TopPlayer] Moving to next chunk at position ${nextChunkPosition}, completed chunk length: ${currentChunk.length}`);
+    
+    // Play the next chunk immediately to ensure continuous playback
+    // Using a minimal delay to prevent potential buffer issues
     setTimeout(() => {
       this.playChunk();
-    }, 300);
+    }, 50);
   }
   
   // Handle end of paragraph playback

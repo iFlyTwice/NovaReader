@@ -15,6 +15,9 @@
   border-left: 1px solid #333;
   /* Add padding to prevent content from being hidden behind scrollbar */
   padding-right: 6px;
+  /* Add border radius to the outer corners */
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
 }
 
 /* Custom scrollbar for panel - matching voice selector style */

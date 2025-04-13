@@ -3,6 +3,7 @@ import '../../css/top-player.css';
 
 // Import Icons
 import { ICONS } from './utils';
+import { SettingsDropdown, SettingsDropdownProps } from './SettingsDropdown';
 
 export class TopPlayer {
   private playerId: string = 'nova-top-player';
@@ -11,7 +12,7 @@ export class TopPlayer {
   private playerElement: HTMLElement | null = null;
   private title: string = 'Listen to This Page';
   private duration: string = '12 min';
-  private optionsOpen: boolean = false;
+  private settingsDropdown: SettingsDropdown | null = null;
   
   constructor() {
     // No need to inject styles separately as they're included in manifest
@@ -33,20 +34,6 @@ export class TopPlayer {
           <button class="top-player-settings-button" id="top-player-settings-button" data-nova-reader="settings-button">
             ${ICONS.settings}
           </button>
-        </div>
-        <div class="top-player-options-menu" id="top-player-options-menu" style="display: none;" data-nova-reader="options-menu">
-          <div class="top-player-option" data-nova-reader="option">
-            <div class="top-player-option-icon">
-              ${ICONS.settings}
-            </div>
-            Settings
-          </div>
-          <div class="top-player-option" data-nova-reader="option">
-            <div class="top-player-option-icon">
-              ${ICONS.close}
-            </div>
-            Hide player
-          </div>
         </div>
       </div>
       <div class="top-player-progress-bar" data-nova-reader="progress-bar">
@@ -267,49 +254,41 @@ export class TopPlayer {
     
     // Settings button
     const settingsButton = this.playerElement.querySelector('#top-player-settings-button');
-    const optionsMenu = this.playerElement.querySelector('#top-player-options-menu');
     
-    if (settingsButton && optionsMenu) {
+    if (settingsButton) {
       settingsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event from bubbling up
-        this.optionsOpen = !this.optionsOpen;
         
-        if (this.optionsOpen) {
-          optionsMenu.setAttribute('style', 'display: block;');
-          
-          // Add document click listener to close menu when clicking outside
-          setTimeout(() => {
-            document.addEventListener('click', this.handleDocumentClick);
-          }, 0);
-        } else {
-          optionsMenu.setAttribute('style', 'display: none;');
-          document.removeEventListener('click', this.handleDocumentClick);
+        // If dropdown is already open, close it
+        if (this.settingsDropdown?.isOpen()) {
+          this.closeSettingsDropdown();
+          return;
         }
+        
+        // Instead of using absolute positioning, we'll append the dropdown directly to the top player
+        // This ensures it moves with the player when scrolling
+        
+        // Create the dropdown with reference to the settings button
+        this.settingsDropdown = new SettingsDropdown({
+          buttonElement: settingsButton,
+          onSettingsClick: () => {
+            console.log('Top Player: Settings clicked');
+            // You would typically open settings here
+          },
+          onHidePlayerClick: () => {
+            console.log('Top Player: Hide player clicked');
+            this.hide();
+          },
+          onClose: () => {
+            this.settingsDropdown = null;
+          }
+        });
+        
+        // Append the dropdown to the document body instead of inside the button
+        // This prevents it from being cut off by overflow: hidden
+        document.body.appendChild(this.settingsDropdown.render());
       });
     }
-    
-    // Option items
-    const optionItems = this.playerElement.querySelectorAll('.top-player-option');
-    optionItems.forEach((item, index) => {
-      item.addEventListener('click', () => {
-        if (index === 0) {
-          // Settings option
-          console.log('Top Player: Settings clicked');
-          // You would typically open settings here
-        } else if (index === 1) {
-          // Hide player option
-          console.log('Top Player: Hide player clicked');
-          this.hide();
-        }
-        
-        // Close options menu
-        if (optionsMenu) {
-          optionsMenu.setAttribute('style', 'display: none;');
-          this.optionsOpen = false;
-          document.removeEventListener('click', this.handleDocumentClick);
-        }
-      });
-    });
     
     // Playback speed
     const playbackSpeed = this.playerElement.querySelector('.top-player-playback-speed');
@@ -339,25 +318,14 @@ export class TopPlayer {
     }
   }
   
-  // Handler for document clicks to close the options menu
-  private handleDocumentClick = (e: MouseEvent): void => {
-    if (!this.playerElement) return;
-    
-    const optionsMenu = this.playerElement.querySelector('#top-player-options-menu');
-    if (!optionsMenu) return;
-    
-    // Check if click was inside the options menu or settings button
-    const settingsButton = this.playerElement.querySelector('#top-player-settings-button');
-    if (e.target === optionsMenu || optionsMenu.contains(e.target as Node) || 
-        e.target === settingsButton || settingsButton?.contains(e.target as Node)) {
-      return;
+  private closeSettingsDropdown(): void {
+    if (this.settingsDropdown) {
+      this.settingsDropdown.close();
+      this.settingsDropdown = null;
     }
-    
-    // If click was outside, close the menu
-    optionsMenu.setAttribute('style', 'display: none;');
-    this.optionsOpen = false;
-    document.removeEventListener('click', this.handleDocumentClick);
-  };
+  }
+  
+  // We now handle scrolling within the SettingsDropdown component
   
   // Track current state
   private state: 'play' | 'loading' | 'speaking' = 'play';
@@ -499,8 +467,8 @@ export class TopPlayer {
   public remove(): void {
     if (!this.playerElement) return;
     
-    // Clean up event listeners
-    document.removeEventListener('click', this.handleDocumentClick);
+    // Close settings dropdown if open
+    this.closeSettingsDropdown();
     
     // Remove from DOM
     this.playerElement.remove();

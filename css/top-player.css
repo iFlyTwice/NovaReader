@@ -144,8 +144,9 @@
   background-color: #282828 !important;
   border-radius: 4px !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
-  z-index: 1000 !important;
-  overflow: hidden !important;
+  z-index: 9999 !important; /* Increased z-index to be higher than container */
+  overflow: visible !important; /* Changed from 'hidden' to 'visible' */
+  width: 150px !important; /* Added fixed width */
 }
 
 .top-player-option {

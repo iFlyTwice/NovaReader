@@ -14,6 +14,7 @@ export class AudioStreamPlayer {
   private isStopped: boolean = false;
   private appendQueue: ArrayBuffer[] = [];
   private isAppending: boolean = false;
+  private isProcessingBuffer = false;
   
   // Store current text and voice information
   private currentText: string = '';
@@ -162,6 +163,9 @@ export class AudioStreamPlayer {
         throw new Error('Failed to get audio stream');
       }
       
+      // We got a stream successfully, clear the timeout since we don't need it anymore
+      this.clearStreamingTimeout();
+      
       console.log('[AudioPlayer] Stream received, beginning to process chunks');
       // Process the stream
       const reader = stream.getReader();
@@ -197,15 +201,21 @@ export class AudioStreamPlayer {
     
     // Update time display while playing
     this.audioElement.addEventListener('timeupdate', () => {
+      const currentTime = this.audioElement.currentTime;
+      this.lastTimeUpdate = currentTime;
+      
       if (this.audioElement.duration) {
-        this.onTimeUpdate(this.audioElement.currentTime, this.audioElement.duration);
+        this.onTimeUpdate(currentTime, this.audioElement.duration);
       }
+      
+      // Manage buffer size on each time update for smoother playback
+      this.manageBufferSize();
       
       // Detect when playback has reached the end of buffered content
       // (This helps catch the "end" when streaming is complete)
       if (this.streamingCompleted && this.audioElement.buffered.length > 0) {
         const bufferEndTime = this.audioElement.buffered.end(this.audioElement.buffered.length - 1);
-        const timeLeft = bufferEndTime - this.audioElement.currentTime;
+        const timeLeft = bufferEndTime - currentTime;
         
         // If we're close to the end of buffered content, trigger playback end
         if (timeLeft <= 0.5) {
@@ -213,38 +223,157 @@ export class AudioStreamPlayer {
         }
       }
     });
+    
+    // Handle audio element errors
+    this.audioElement.addEventListener('error', (e) => {
+      console.error('[AudioPlayer] Audio element error:', e);
+      this.onPlaybackError(`Audio playback error: ${this.audioElement.error?.message || 'Unknown error'}`);
+    });
+    
+    // Log buffer updates for debugging
+    if (this.sourceBuffer) {
+      this.sourceBuffer.addEventListener('updateend', () => {
+        if (this.sourceBuffer && this.sourceBuffer.buffered.length > 0) {
+          const bufferStart = this.sourceBuffer.buffered.start(0);
+          const bufferEnd = this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1);
+          console.log(`[AudioPlayer] Buffer updated: ${bufferStart.toFixed(2)} - ${bufferEnd.toFixed(2)}, length: ${(bufferEnd - bufferStart).toFixed(2)}s`);
+        }
+      });
+    }
   }
   
   /**
    * Process the append queue to add chunks to the source buffer
    */
+  // Keep track of playback position for accurate buffer management
+  private lastTimeUpdate: number = 0;
+  private bufferFullErrorCount: number = 0;
+  private readonly MAX_BUFFER_FULL_ERRORS = 10;
+
   private processAppendQueue(): void {
-    if (!this.isAppending && this.appendQueue.length > 0 && !this.isStopped) {
-      this.isAppending = true;
-      const chunk = this.appendQueue.shift();
-      
-      if (chunk && this.sourceBuffer && this.mediaSource.readyState === 'open') {
-        try {
-          this.sourceBuffer.appendBuffer(chunk);
+    if (this.isAppending || this.appendQueue.length === 0 || this.isStopped) {
+      return;
+    }
+    
+    this.isAppending = true;
+    const chunk = this.appendQueue.shift();
+    
+    if (chunk && this.sourceBuffer && this.mediaSource.readyState === 'open') {
+      try {
+        // Only append if the buffer is not updating
+        if (!this.sourceBuffer.updating) {
+          // Before appending, check if we need to remove old data from the buffer
+          this.manageBufferSize();
           
-          // Manage buffer size to prevent memory issues with long texts
-          if (this.mediaSource.duration && this.audioElement.currentTime) {
-            const currentTime = this.audioElement.currentTime;
-            if (this.mediaSource.duration - currentTime > this.maxBufferDuration) {
-              const removeEnd = currentTime - 2; // Keep a small buffer before current time
-              if (removeEnd > 0) {
-                this.sourceBuffer.remove(0, removeEnd);
+          try {
+            this.sourceBuffer.appendBuffer(chunk);
+          } catch (appendError) {
+            if (appendError.name === 'QuotaExceededError') {
+              // Buffer is full, we need to remove more data
+              this.bufferFullErrorCount++;
+              console.warn(`[AudioPlayer] Buffer full (error #${this.bufferFullErrorCount}), removing more data before retrying`);
+              
+              // Put the chunk back at the front of the queue
+              this.appendQueue.unshift(chunk);
+              
+              if (this.bufferFullErrorCount < this.MAX_BUFFER_FULL_ERRORS) {
+                // Aggressively remove more data from the buffer
+                this.removeMoreBufferData();
+                
+                // Retry after a short delay
+                setTimeout(() => {
+                  this.isAppending = false;
+                  this.processAppendQueue();
+                }, 100);
+              } else {
+                // Too many buffer full errors, something is wrong
+                console.error('[AudioPlayer] Too many buffer full errors, playback may be unstable');
+                this.onPlaybackError('Media buffer is full. This text may be too large for continuous playback.');
+                this.bufferFullErrorCount = 0;
+                this.isAppending = false;
               }
+              return;
+            } else {
+              // Some other error, rethrow
+              throw appendError;
             }
           }
-        } catch (error) {
-          console.error('Error appending buffer:', error);
+        } else {
+          // Put the chunk back at the front of the queue
+          this.appendQueue.unshift(chunk);
           this.isAppending = false;
-          this.processAppendQueue();
+          
+          // Retry after a short delay
+          setTimeout(() => this.processAppendQueue(), 50);
+          return;
         }
-      } else {
+      } catch (error) {
+        console.error('Error appending buffer:', error);
         this.isAppending = false;
+        
+        // If the error indicates the buffer is busy, retry after a delay
+        if (error.name === 'InvalidStateError') {
+          setTimeout(() => this.processAppendQueue(), 100);
+        }
       }
+    } else {
+      this.isAppending = false;
+    }
+  }
+  
+  /**
+   * Manage the media buffer size to prevent overflow
+   */
+  private manageBufferSize(): void {
+    if (!this.sourceBuffer || this.sourceBuffer.updating) return;
+    
+    try {
+      const currentTime = this.audioElement.currentTime;
+      this.lastTimeUpdate = currentTime;
+      
+      // Only keep a buffer window of the most recent content if we have buffered content
+      if (this.sourceBuffer.buffered.length > 0) {
+        const bufferStart = this.sourceBuffer.buffered.start(0);
+        const bufferEnd = this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1);
+        const bufferLength = bufferEnd - bufferStart;
+        
+        // If we have more than 30 seconds in the buffer behind the current playback position
+        // remove older content to make room for new content
+        if (currentTime > 30 && bufferStart < currentTime - 30) {
+          const removeEnd = currentTime - 10; // Keep a small buffer before current position
+          if (removeEnd > bufferStart) {
+            console.log(`[AudioPlayer] Removing buffer data from ${bufferStart.toFixed(2)} to ${removeEnd.toFixed(2)}`);
+            this.sourceBuffer.remove(bufferStart, removeEnd);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[AudioPlayer] Error managing buffer size:', error);
+    }
+  }
+  
+  /**
+   * Aggressively remove more buffer data when the buffer is full
+   */
+  private removeMoreBufferData(): void {
+    if (!this.sourceBuffer || this.sourceBuffer.updating) return;
+    
+    try {
+      const currentTime = this.audioElement.currentTime;
+      
+      if (this.sourceBuffer.buffered.length > 0) {
+        const bufferStart = this.sourceBuffer.buffered.start(0);
+        const bufferEnd = this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1);
+        
+        // Aggressively remove more data, keeping only 5 seconds before current position
+        const removeEnd = Math.max(bufferStart, currentTime - 5);
+        if (removeEnd > bufferStart) {
+          console.log(`[AudioPlayer] Aggressively removing buffer data from ${bufferStart.toFixed(2)} to ${removeEnd.toFixed(2)}`);
+          this.sourceBuffer.remove(bufferStart, removeEnd);
+        }
+      }
+    } catch (error) {
+      console.warn('[AudioPlayer] Error removing buffer data:', error);
     }
   }
   
@@ -264,18 +393,41 @@ export class AudioStreamPlayer {
   private clearBuffer(): void {
     this.isStopped = true;
     this.appendQueue = [];
+    this.isAppending = false;
     
-    if (this.mediaSource.readyState === 'open' && this.sourceBuffer) {
+    if (this.mediaSource && this.mediaSource.readyState === 'open') {
       try {
-        this.sourceBuffer.abort();
-        this.mediaSource.removeSourceBuffer(this.sourceBuffer);
+        if (this.sourceBuffer) {
+          try {
+            this.sourceBuffer.abort();
+          } catch (abortError) {
+            console.warn('[AudioPlayer] Error aborting source buffer:', abortError);
+          }
+          
+          try {
+            this.mediaSource.removeSourceBuffer(this.sourceBuffer);
+          } catch (removeError) {
+            console.warn('[AudioPlayer] Error removing source buffer:', removeError);
+          }
+          
+          this.sourceBuffer = null;
+        }
+        
+        try {
+          this.mediaSource.endOfStream();
+        } catch (endError) {
+          console.warn('[AudioPlayer] Error ending media source stream:', endError);
+        }
       } catch (error) {
-        console.error('Error clearing buffer:', error);
+        console.error('[AudioPlayer] Error clearing buffer:', error);
       }
     }
     
-    this.audioElement.pause();
-    this.audioElement.src = '';
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.src = '';
+    }
+    
     this.streamingCompleted = true;
   }
   
@@ -347,9 +499,12 @@ export class AudioStreamPlayer {
     }
   }
   
+  // Max characters for non-streaming playback
+  private MAX_NON_STREAMING_LENGTH: number = 3000;
+  
   /**
    * Play text using ElevenLabs API
-   * This method chooses between streaming and non-streaming based on text length
+   * Always use streaming for proper playback
    */
   public async playText(text: string, voiceId: string, modelId: string = 'eleven_turbo_v2'): Promise<void> {
     if (!text.trim()) {
@@ -362,14 +517,14 @@ export class AudioStreamPlayer {
     this.currentVoiceId = voiceId;
     this.currentModelId = modelId;
     
-    // Use non-streaming approach for texts under 500 characters
-    if (text.length < 500) {
-      console.log('[AudioPlayer] Text length under threshold, using non-streaming approach');
+    // For very short texts, we can still use non-streaming as it's faster
+    if (text.length < 200) {
+      console.log('[AudioPlayer] Text length very short, using non-streaming approach');
       await this.playTextNonStreaming(text, voiceId, modelId);
       return;
     }
     
-    // For longer texts, use improved streaming approach
+    // For all other texts, always use streaming approach
     try {
       console.log('[AudioPlayer] Starting streaming playback with:', { 
         textLength: text.length, 
@@ -389,7 +544,7 @@ export class AudioStreamPlayer {
       // Set up AudioElement with MediaSource
       this.audioElement.src = URL.createObjectURL(this.mediaSource);
       
-      // Start streaming setup timeout
+      // Start streaming setup timeout - only to detect if streaming fails to start at all
       this.startStreamingTimeout();
       
       // Start playback - the mediaSource 'sourceopen' event will trigger fetchAndProcessStream
@@ -412,19 +567,26 @@ export class AudioStreamPlayer {
   
   /**
    * Start a timeout to handle cases where streaming setup takes too long
+   * This is only used to detect if streaming fails to start at all
    */
   private startStreamingTimeout(): void {
     // Clear any existing timeout
     this.clearStreamingTimeout();
     
-    // Set a new timeout
+    // Set a new timeout only for initial streaming start
     this.streamingSetupTimeout = window.setTimeout(() => {
-      console.warn('[AudioPlayer] Streaming setup timeout reached, falling back to non-streaming');
-      
-      // If we're still waiting for streaming to start properly, fall back to non-streaming
-      if (!this.streamingCompleted && this.currentText && this.currentVoiceId) {
-        this.stopPlayback();
-        this.playTextNonStreaming(this.currentText, this.currentVoiceId, this.currentModelId);
+      // Check if we've already received any streaming data
+      if (this.appendQueue.length === 0 && !this.streamingCompleted) {
+        console.warn('[AudioPlayer] Streaming setup timeout reached - streaming failed to start');
+        
+        // Only clean up and use fallback if streaming didn't start at all
+        this.clearBuffer();
+        
+        // Here we would typically fall back to non-streaming, but per request we'll just show an error
+        this.onPlaybackError('Streaming timeout: Failed to start streaming playback');
+      } else {
+        // Streaming has already started, so we don't need to do anything
+        console.log('[AudioPlayer] Streaming data received, ignoring timeout');
       }
     }, STREAMING_TIMEOUT);
   }

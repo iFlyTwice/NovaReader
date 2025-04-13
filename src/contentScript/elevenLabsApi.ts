@@ -228,10 +228,26 @@ export const streamTextToSpeech = async (text: string, voiceId: string, modelId:
           console.log('[ElevenLabsAPI] 401 error details:', errorBody);
           
           // Check if this is a quota or unusual activity issue
-          if (errorBody.detail && errorBody.detail.status) {
-            const errorStatus = errorBody.detail.status;
-            if (errorStatus === "detected_unusual_activity" || errorStatus === "quota_exceeded") {
-              errorMessage = `ElevenLabs API Error: ${errorBody.detail.message}`;
+          if (errorBody.detail) {
+            // Handle both object and string detail formats
+            if (typeof errorBody.detail === 'string') {
+              // Direct message format
+              errorMessage = `ElevenLabs API Error: ${errorBody.detail}`;
+              
+              // Extract credit information if available
+              const creditMatch = errorBody.detail.match(/(\d+) credits remaining.+(\d+) credits are required/);
+              if (creditMatch && creditMatch.length >= 3) {
+                const creditsRemaining = creditMatch[1];
+                const creditsRequired = creditMatch[2];
+                errorMessage = `ElevenLabs API Error: This request exceeds your quota. You have ${creditsRemaining} credits remaining, while ${creditsRequired} credits are required for this request.`;
+              }
+            } 
+            // Object format with status field
+            else if (errorBody.detail.status) {
+              const errorStatus = errorBody.detail.status;
+              if (errorStatus === "detected_unusual_activity" || errorStatus === "quota_exceeded") {
+                errorMessage = `ElevenLabs API Error: ${errorBody.detail.message}`;
+              }
             }
           }
         } catch (jsonError) {

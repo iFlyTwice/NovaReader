@@ -603,7 +603,65 @@ export class TopPlayer {
     this.setState('play');
     this.pauseProgressAnimation();
     
-    // Could show an error notification here
+    // Check for common error types and display appropriate messages
+    if (error.includes('quota') || error.includes('credits')) {
+      // Show a quota error notification
+      this.showErrorNotification('ElevenLabs API quota exceeded. Please upgrade your ElevenLabs account or try a shorter text.');
+    } else if (error.includes('Unauthorized')) {
+      // Show an authentication error notification
+      this.showErrorNotification('API key error. Please check your ElevenLabs API key in the extension settings.');
+    } else if (error.includes('timeout')) {
+      // Show a timeout error notification
+      this.showErrorNotification('Playback timed out. Trying with a shorter text segment...');
+    } else {
+      // Generic error
+      this.showErrorNotification('Playback error. Please try again with a shorter text or refresh the page.');
+    }
+  }
+  
+  /**
+   * Show an error notification to the user
+   */
+  private showErrorNotification(message: string): void {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'top-player-notification';
+    notification.textContent = message;
+    
+    // Style the notification
+    notification.style.backgroundColor = 'rgba(220, 53, 69, 0.9)';
+    notification.style.color = 'white';
+    notification.style.padding = '10px 15px';
+    notification.style.borderRadius = '4px';
+    notification.style.position = 'fixed';
+    notification.style.bottom = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '10000';
+    notification.style.maxWidth = '300px';
+    notification.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+    notification.style.fontSize = '14px';
+    
+    // Add close button
+    const closeButton = document.createElement('span');
+    closeButton.textContent = '×';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '5px';
+    closeButton.style.right = '10px';
+    closeButton.style.fontSize = '18px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => notification.remove();
+    
+    notification.appendChild(closeButton);
+    
+    // Add to document
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        notification.remove();
+      }
+    }, 8000);
   }
   
   private updateTimeDisplay(currentTime: number, duration: number): void {
@@ -664,6 +722,9 @@ export class TopPlayer {
     // Do nothing if already in loading state
   }
   
+  // Maximum text length for a single playback chunk (to prevent buffer overflow)
+  private MAX_CHUNK_LENGTH = 2000;
+  
   // Start playback of the current paragraph and set up to continue to the next
   private async startPlayback(): void {
     console.log(`[TopPlayer] startPlayback called, paragraphs length: ${this.paragraphs.length}`);
@@ -694,27 +755,133 @@ export class TopPlayer {
       // Get current paragraph text
       const currentText = this.paragraphs[this.currentParagraphIndex];
       
-      console.log(`[TopPlayer] Starting playback of paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}:`, { 
-        textPreview: currentText.substring(0, 50) + '...',
-        textLength: currentText.length, 
-        voiceId,
-        modelId 
-      });
-      
-      // Set up callback for playback end to move to next paragraph
-      this.audioPlayer.setCallbacks({
-        onPlaybackStart: () => this.handlePlaybackStart(),
-        onPlaybackEnd: () => this.handleParagraphEnd(),
-        onPlaybackError: (error) => this.handlePlaybackError(error),
-        onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
-      });
-      
-      // Start playback with the audioPlayer
-      await this.audioPlayer.playText(currentText, voiceId, modelId);
+      // Check if the paragraph is too long and needs to be chunked
+      if (currentText.length > this.MAX_CHUNK_LENGTH) {
+        // Split the text into chunks
+        const chunks = this.chunkText(currentText);
+        console.log(`[TopPlayer] Text too long (${currentText.length} chars), split into ${chunks.length} chunks`);
+        
+        // Store chunks for the current paragraph
+        this.currentParagraphChunks = chunks;
+        this.currentChunkIndex = 0;
+        
+        // Play the first chunk
+        this.playChunk();
+      } else {
+        // Normal playback for reasonable length paragraphs
+        console.log(`[TopPlayer] Starting playback of paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}:`, { 
+          textPreview: currentText.substring(0, 50) + '...',
+          textLength: currentText.length, 
+          voiceId,
+          modelId 
+        });
+        
+        // Set up callback for playback end to move to next paragraph
+        this.audioPlayer.setCallbacks({
+          onPlaybackStart: () => this.handlePlaybackStart(),
+          onPlaybackEnd: () => this.handleParagraphEnd(),
+          onPlaybackError: (error) => this.handlePlaybackError(error),
+          onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+        });
+        
+        // Start playback with the audioPlayer
+        await this.audioPlayer.playText(currentText, voiceId, modelId);
+      }
     } catch (error) {
       console.error('[TopPlayer] Error starting playback:', error);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
     }
+  }
+  
+  // Storage for chunked paragraph playback
+  private currentParagraphChunks: string[] = [];
+  private currentChunkIndex: number = 0;
+  
+  /**
+   * Split text into manageable chunks for playback
+   */
+  private chunkText(text: string): string[] {
+    const chunks: string[] = [];
+    let start = 0;
+    
+    while (start < text.length) {
+      // Find a good breaking point near the max chunk size
+      let end = Math.min(start + this.MAX_CHUNK_LENGTH, text.length);
+      
+      // If we're not at the end, try to break at a sentence
+      if (end < text.length) {
+        // Look for sentence endings (., !, ?)
+        const sentenceBreak = text.lastIndexOf('.', end);
+        const exclamationBreak = text.lastIndexOf('!', end);
+        const questionBreak = text.lastIndexOf('?', end);
+        
+        // Find the closest sentence break
+        let breakPoint = Math.max(sentenceBreak, exclamationBreak, questionBreak);
+        
+        // If we found a valid break point, use it
+        if (breakPoint > start && breakPoint <= end) {
+          end = breakPoint + 1; // Include the sentence-ending character
+        } else {
+          // No sentence break, try to break at a space
+          const spaceBreak = text.lastIndexOf(' ', end);
+          if (spaceBreak > start) {
+            end = spaceBreak + 1;
+          }
+          // If no space found, just use the max length
+        }
+      }
+      
+      // Extract the chunk and add it to the list
+      chunks.push(text.substring(start, end));
+      start = end;
+    }
+    
+    return chunks;
+  }
+  
+  /**
+   * Play a chunk of the current paragraph
+   */
+  private playChunk(): void {
+    if (this.currentChunkIndex >= this.currentParagraphChunks.length) {
+      // We've played all chunks, move to the next paragraph
+      console.log('[TopPlayer] All chunks played, moving to next paragraph');
+      this.handleParagraphEnd();
+      return;
+    }
+    
+    const chunk = this.currentParagraphChunks[this.currentChunkIndex];
+    console.log(`[TopPlayer] Playing chunk ${this.currentChunkIndex + 1}/${this.currentParagraphChunks.length}, length: ${chunk.length}`);
+    
+    // Set up callback to play the next chunk when this one finishes
+    this.audioPlayer.setCallbacks({
+      onPlaybackStart: () => this.handlePlaybackStart(),
+      onPlaybackEnd: () => this.handleChunkEnd(),
+      onPlaybackError: (error) => this.handlePlaybackError(error),
+      onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+    });
+    
+    // Play this chunk
+    this.audioPlayer.playText(chunk, this.defaultVoiceId, this.defaultModelId)
+      .catch(error => {
+        console.error('[TopPlayer] Error playing chunk:', error);
+        this.handlePlaybackError(`Chunk playback error: ${error}`);
+      });
+  }
+  
+  /**
+   * Handle the end of a chunk playback
+   */
+  private handleChunkEnd(): void {
+    console.log('[TopPlayer] Chunk playback ended');
+    
+    // Move to the next chunk
+    this.currentChunkIndex++;
+    
+    // Play the next chunk with a small delay
+    setTimeout(() => {
+      this.playChunk();
+    }, 300);
   }
   
   // Handle end of paragraph playback

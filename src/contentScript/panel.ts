@@ -1,5 +1,6 @@
 // SVG Icons
 import { ICONS } from './utils';
+
 // Import CSS to help Vite track dependencies
 import '../../css/panel.css';
 import '../../css/auth.css';
@@ -284,7 +285,7 @@ export class SidePanel {
           <div class="panel-logo-icon">
             <img src="${extensionUrl}" alt="NovaReader logo" class="logo-img"/>
           </div>
-          <div class="panel-title" style="font-family: 'Heiback', sans-serif; letter-spacing: 1px;">NovaReader</div>
+          <div class="panel-title">NovaReader</div>
         </div>
         <div class="panel-close">${ICONS.close}</div>
       </div>
@@ -320,11 +321,16 @@ export class SidePanel {
       return;
     }
 
-    // Create panel container
+    // Create panel container with a higher CSS specificity approach
     const panel = document.createElement('div');
     panel.id = this.panelId;
+    panel.setAttribute('data-extension-panel', 'true');
     
-    // Add font styles directly
+    // Create an isolating container for panel contents
+    const panelWrapper = document.createElement('div');
+    panelWrapper.className = 'nova-reader-panel-wrapper';
+    
+    // Add font styles directly to ensure they load
     const style = document.createElement('style');
     style.textContent = `
       @font-face {
@@ -333,10 +339,61 @@ export class SidePanel {
         font-weight: normal;
         font-style: normal;
       }
+      
+      /* Extra styles to ensure consistent rendering */
+      #${this.panelId} * {
+        box-sizing: border-box !important;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+      }
+      
+      #${this.panelId} .panel-title {
+        font-family: 'Heiback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      }
+      
+      #${this.panelId} input, 
+      #${this.panelId} button, 
+      #${this.panelId} select, 
+      #${this.panelId} textarea {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        border-radius: 6px !important;
+        margin: 0 !important;
+        font-size: 14px !important;
+      }
     `;
     document.head.appendChild(style);
     
+    // Set panel HTML
     panel.innerHTML = this.getPanelHTML();
+    
+    // Add extra attributes to all form elements for style isolation
+    const formElements = panel.querySelectorAll('input, select, button, textarea');
+    formElements.forEach(el => {
+      el.setAttribute('data-novardr-element', 'true');
+    });
+    
+    // Apply force-override styles directly to the element
+    panel.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      right: -350px !important;
+      width: 350px !important;
+      height: 100vh !important;
+      background-color: #1c1c1c !important;
+      color: #fff !important;
+      z-index: 999999 !important;
+      transition: right 0.3s ease-in-out !important;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif !important;
+      border-left: 1px solid #333 !important;
+      padding-right: 6px !important;
+      border-top-left-radius: 16px !important;
+      border-bottom-left-radius: 16px !important;
+      box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4),
+                0 0 0 2px rgba(255, 255, 255, 0.05),
+                -8px 0 25px rgba(0, 0, 0, 0.6),
+                -2px 0 5px rgba(0, 0, 0, 0.5) !important;
+      overflow-y: auto !important;
+    `;
     
     // Add panel to page
     document.body.appendChild(panel);
@@ -418,6 +475,7 @@ export class SidePanel {
     // Open panel with animation
     requestAnimationFrame(() => {
       panel.classList.add('open');
+      panel.style.right = '0';
       this.isOpen = true;
     });
   }
@@ -432,6 +490,7 @@ export class SidePanel {
     
     if (panel.classList.contains('open')) {
       panel.classList.remove('open');
+      panel.style.right = '-350px';
       
       // Wait for panel animation to complete before removing from DOM
       setTimeout(() => {
@@ -440,6 +499,7 @@ export class SidePanel {
       }, 300);
     } else {
       panel.classList.add('open');
+      panel.style.right = '0';
       this.isOpen = true;
     }
   }

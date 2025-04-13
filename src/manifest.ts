@@ -57,12 +57,14 @@ export default defineManifest({
         'css/voiceSelector.css',
         'css/selectionButton.css',
         'css/auth.css',
+        'css/landingPage.css',
         'fonts/Heiback.otf',
         'assets/play.svg',
         'assets/stop.svg',
         'assets/pause.svg',
         'assets/spinner.svg',
-        'oauth-callback.html'
+        'oauth-callback.html',
+        'welcome.html'
       ],
       matches: ['<all_urls>'],
     },

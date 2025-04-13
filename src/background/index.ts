@@ -3,8 +3,8 @@ import { ELEVENLABS_API_KEY, DEFAULT_VOICE_ID } from '../config';
 console.log('Background script is running');
 
 // When extension is installed or updated
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('Extension installed or updated');
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('Extension installed or updated:', details.reason);
   
   if (!ELEVENLABS_API_KEY) {
     console.error('ERROR: No API key found in config! The extension will not work properly.');
@@ -23,6 +23,17 @@ chrome.runtime.onInstalled.addListener(() => {
       console.log('API key and default voice saved to storage successfully');
     }
   });
+  
+  // Show welcome page when extension is first installed
+  if (details.reason === 'install') {
+    console.log('First installation - opening welcome page');
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('welcome.html')
+    });
+    
+    // Set flag to indicate user has seen the welcome page
+    chrome.storage.local.set({ hasSeenWelcomePage: true });
+  }
 });
 
 // Handle messages from content script or OAuth callback

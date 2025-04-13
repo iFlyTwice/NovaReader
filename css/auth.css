@@ -1,204 +1,153 @@
-/* Authentication-related styles */
-
-/* Auth tabs */
-.auth-tabs {
-  display: flex;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #444;
+/* Auth section styling */
+#extension-side-panel .panel-section-title {
+  text-align: center !important;
+  font-family: 'Heiback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-size: 18px !important;
+  letter-spacing: 0.5px !important;
+  margin-bottom: 15px !important;
 }
 
-.auth-tab-btn {
-  background: none;
-  border: none;
-  color: #aaa;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 14px;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s ease;
+#extension-side-panel #auth-logged-out p {
+  text-align: center !important;
+  margin-bottom: 20px !important;
 }
 
-.auth-tab-btn.active {
-  color: #fff;
-  border-bottom: 2px solid #27272a;
+#extension-side-panel .auth-tabs {
+  display: flex !important;
+  justify-content: center !important;
+  margin-bottom: 20px !important;
+  border-bottom: 1px solid #444 !important;
 }
 
-.auth-tab-btn:hover {
-  color: #ddd;
+#extension-side-panel .auth-tab-btn {
+  padding: 8px 16px !important;
+  background: transparent !important;
+  color: #aaa !important;
+  border: none !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  transition: color 0.2s ease !important;
 }
 
-/* Form elements */
-.form-error {
-  color: #ff4d4d;
-  font-size: 12px;
-  margin-bottom: 8px;
-  min-height: 18px;
+#extension-side-panel .auth-tab-btn.active {
+  color: #fff !important;
+  border-bottom: 2px solid #27272a !important;
+  margin-bottom: -1px !important;
 }
 
-.form-success {
-  color: #4cd964;
-  font-size: 12px;
-  margin-bottom: 8px;
-  min-height: 18px;
+/* Center and style the "Sign In" button */
+#extension-side-panel #login-form button[type="submit"] {
+  display: block !important;
+  width: 80% !important;
+  margin: 25px auto !important;
+  padding: 12px !important;
+  font-size: 16px !important;
+  background-color: #27272a !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  text-align: center !important;
 }
 
-.form-footer {
-  margin-top: 12px;
-  font-size: 12px;
+#extension-side-panel #login-form button[type="submit"]:hover {
+  background-color: #3f3f46 !important;
 }
 
-.form-footer a {
-  color: #aaa;
-  text-decoration: none;
-  transition: color 0.2s ease;
+/* Center the "Forgot Password" link */
+#extension-side-panel .form-footer {
+  text-align: center !important;
+  margin-bottom: 20px !important;
 }
 
-.form-footer a:hover {
-  color: #fff;
-  text-decoration: underline;
+#extension-side-panel #forgot-password {
+  color: #aaa !important;
+  text-decoration: none !important;
+  font-size: 14px !important;
 }
 
-/* User info section */
-.user-info {
-  margin-bottom: 16px;
-  background-color: rgba(39, 39, 42, 0.3);
-  padding: 12px;
-  border-radius: 6px;
+#extension-side-panel #forgot-password:hover {
+  color: #fff !important;
+  text-decoration: underline !important;
 }
 
-#user-email {
-  font-weight: bold;
+/* Style the OR divider */
+#extension-side-panel .social-divider {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 20px 0 !important;
+  color: #666 !important;
+  font-size: 14px !important;
 }
 
-/* Sync section */
-.sync-controls {
-  margin-top: 16px;
+#extension-side-panel .social-divider::before,
+#extension-side-panel .social-divider::after {
+  content: "" !important;
+  flex: 1 !important;
+  border-bottom: 1px solid #444 !important;
+  margin: 0 10px !important;
 }
 
-#sync-status {
-  font-size: 12px;
-  margin-top: 8px;
-  min-height: 18px;
+/* Style and center the Google button */
+#extension-side-panel .btn-google {
+  display: block !important;
+  width: 80% !important;
+  margin: 0 auto !important;
+  padding: 12px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  background-color: white !important;
+  color: #333 !important;
+  border-radius: 6px !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
 }
 
-.sync-controls p {
-  font-size: 13px;
-  color: #aaa;
-  margin-bottom: 8px;
+#extension-side-panel .btn-google svg {
+  margin-right: 10px !important;
 }
 
-/* Reset password form */
-#reset-password-form h4 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  font-size: 16px;
-  font-weight: normal;
-  color: #fff;
+/* Make the signup button match the same styling */
+#extension-side-panel #signup-form button[type="submit"] {
+  display: block !important;
+  width: 80% !important;
+  margin: 25px auto !important;
+  padding: 12px !important;
+  font-size: 16px !important;
+  background-color: #27272a !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  text-align: center !important;
 }
 
-/* Social login styles */
-.social-login {
-  margin-top: 16px;
+#extension-side-panel #signup-form button[type="submit"]:hover {
+  background-color: #3f3f46 !important;
 }
 
-.social-divider {
-  display: flex;
-  align-items: center;
-  margin: 15px 0;
-  color: #777;
-  font-size: 12px;
+/* Reading stats styling */
+#extension-side-panel #reading-stats {
+  margin-top: 20px !important;
+  text-align: center !important;
 }
 
-.social-divider::before,
-.social-divider::after {
-  content: "";
-  flex: 1;
-  border-bottom: 1px solid #444;
-}
-
-.social-divider span {
-  padding: 0 10px;
-}
-
-.btn-google {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  background-color: #fff;
-  color: #333;
-  border: none;
-  border-radius: 4px;
-  padding: 10px;
-  margin-top: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.btn-google:hover {
-  background-color: #f5f5f5;
-}
-
-.btn-google svg {
-  margin-right: 10px;
-}
-
-/* Light theme overrides */
+/* Light theme adjustments */
 @media (prefers-color-scheme: light) {
-  .auth-tab-btn {
-    color: #666;
+  #extension-side-panel .auth-tab-btn.active {
+    color: #333 !important;
+    border-bottom-color: #3f3f46 !important;
   }
   
-  .auth-tab-btn.active {
-    color: #333;
-    border-bottom: 2px solid #27272a;
+  #extension-side-panel #login-form button[type="submit"],
+  #extension-side-panel #signup-form button[type="submit"] {
+    background-color: #3f3f46 !important;
   }
   
-  .auth-tab-btn:hover {
-    color: #000;
-  }
-  
-  .form-error {
-    color: #ff3b30;
-  }
-  
-  .form-success {
-    color: #34c759;
-  }
-  
-  .form-footer a {
-    color: #666;
-  }
-  
-  .form-footer a:hover {
-    color: #333;
-  }
-  
-  .user-info {
-    background-color: rgba(39, 39, 42, 0.1);
-  }
-  
-  #reset-password-form h4 {
-    color: #333;
-  }
-  
-  .social-divider {
-    color: #999;
-  }
-  
-  .social-divider::before,
-  .social-divider::after {
-    border-bottom: 1px solid #ddd;
-  }
-  
-  .btn-google {
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ddd;
-  }
-  
-  .btn-google:hover {
-    background-color: #f5f5f5;
+  #extension-side-panel #login-form button[type="submit"]:hover,
+  #extension-side-panel #signup-form button[type="submit"]:hover {
+    background-color: #52525b !important;
   }
 }

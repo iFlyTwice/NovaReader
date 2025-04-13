@@ -2,6 +2,7 @@ import { SidePlayer } from './player';
 import { SidePanel } from './panel';
 import { VoiceSelector } from './voiceSelector';
 import { SelectionButton } from './selectionButton';
+import { TopPlayer } from './topPlayer';
 import { addKeyboardShortcuts } from './utils';
 
 // Import global CSS files to help Vite track dependencies
@@ -13,6 +14,7 @@ class ExtensionController {
   private panel: SidePanel;
   private voiceSelector: VoiceSelector;
   private selectionButton: SelectionButton;
+  private topPlayer: TopPlayer;
   private isPanelOpen: boolean = false;
   private isVoiceSelectorOpen: boolean = false;
 
@@ -24,6 +26,7 @@ class ExtensionController {
     this.panel = new SidePanel();
     this.voiceSelector = new VoiceSelector();
     this.selectionButton = new SelectionButton();
+    this.topPlayer = new TopPlayer();
     
     // Setup event listeners
     this.setupMessageListeners();
@@ -39,9 +42,35 @@ class ExtensionController {
     // Listen for selection button state changes
     this.setupSelectionButtonStateListener();
     
-    // Create the player immediately
+    // Create the side player immediately
     setTimeout(() => {
       this.player.create();
+      
+      // For the top player, wait for the page to be more fully loaded before creating it
+      // This prevents the jumping/repositioning issue
+      const createTopPlayer = () => {
+        // Check if we're on Coursera and wait for the reading-title to be available
+        const hostname = window.location.hostname;
+        if (hostname.includes('coursera.org')) {
+          const readingTitle = document.querySelector('div.reading-title');
+          if (readingTitle) {
+            // Reading title found, create the player
+            this.topPlayer.create();
+            return;
+          }
+          
+          // If not found yet, try again after a short delay
+          setTimeout(createTopPlayer, 100);
+        } else {
+          // Not Coursera, create the player after a short delay to allow page to load
+          setTimeout(() => {
+            this.topPlayer.create();
+          }, 200);
+        }
+      };
+      
+      // Start the process after a small delay
+      setTimeout(createTopPlayer, 100);
     }, 500);
   }
   
@@ -82,6 +111,9 @@ class ExtensionController {
       if (request.action === 'toggleSidePlayer') {
         this.togglePlayer();
       }
+      if (request.action === 'toggleTopPlayer') {
+        this.toggleTopPlayer();
+      }
     });
   }
   
@@ -94,6 +126,11 @@ class ExtensionController {
     // Listen for voice selector toggle event
     document.addEventListener('toggle-voice-selector', () => {
       this.toggleVoiceSelector();
+    });
+    
+    // Listen for top player toggle event
+    document.addEventListener('toggle-top-player', () => {
+      this.toggleTopPlayer();
     });
   }
   
@@ -156,6 +193,10 @@ class ExtensionController {
   
   private togglePlayer(): void {
     this.player.toggle(this.isPanelOpen);
+  }
+  
+  private toggleTopPlayer(): void {
+    this.topPlayer.toggle();
   }
 }
 

@@ -36,7 +36,8 @@ export default defineManifest({
         'css/panel.css', 
         'css/voiceSelector.css',
         'css/selectionButton.css',
-        'css/auth.css'
+        'css/auth.css',
+        'css/top-player.css'
       ]
     },
   ],
@@ -57,6 +58,7 @@ export default defineManifest({
         'css/voiceSelector.css',
         'css/selectionButton.css',
         'css/auth.css',
+        'css/top-player.css',
         'css/landingPage.css',
         'fonts/Heiback.otf',
         'assets/play.svg',

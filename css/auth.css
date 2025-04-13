@@ -1,0 +1,204 @@
+/* Authentication-related styles */
+
+/* Auth tabs */
+.auth-tabs {
+  display: flex;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #444;
+}
+
+.auth-tab-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.auth-tab-btn.active {
+  color: #fff;
+  border-bottom: 2px solid #27272a;
+}
+
+.auth-tab-btn:hover {
+  color: #ddd;
+}
+
+/* Form elements */
+.form-error {
+  color: #ff4d4d;
+  font-size: 12px;
+  margin-bottom: 8px;
+  min-height: 18px;
+}
+
+.form-success {
+  color: #4cd964;
+  font-size: 12px;
+  margin-bottom: 8px;
+  min-height: 18px;
+}
+
+.form-footer {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.form-footer a {
+  color: #aaa;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.form-footer a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* User info section */
+.user-info {
+  margin-bottom: 16px;
+  background-color: rgba(39, 39, 42, 0.3);
+  padding: 12px;
+  border-radius: 6px;
+}
+
+#user-email {
+  font-weight: bold;
+}
+
+/* Sync section */
+.sync-controls {
+  margin-top: 16px;
+}
+
+#sync-status {
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.sync-controls p {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+/* Reset password form */
+#reset-password-form h4 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: normal;
+  color: #fff;
+}
+
+/* Social login styles */
+.social-login {
+  margin-top: 16px;
+}
+
+.social-divider {
+  display: flex;
+  align-items: center;
+  margin: 15px 0;
+  color: #777;
+  font-size: 12px;
+}
+
+.social-divider::before,
+.social-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #444;
+}
+
+.social-divider span {
+  padding: 0 10px;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background-color: #fff;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.btn-google:hover {
+  background-color: #f5f5f5;
+}
+
+.btn-google svg {
+  margin-right: 10px;
+}
+
+/* Light theme overrides */
+@media (prefers-color-scheme: light) {
+  .auth-tab-btn {
+    color: #666;
+  }
+  
+  .auth-tab-btn.active {
+    color: #333;
+    border-bottom: 2px solid #27272a;
+  }
+  
+  .auth-tab-btn:hover {
+    color: #000;
+  }
+  
+  .form-error {
+    color: #ff3b30;
+  }
+  
+  .form-success {
+    color: #34c759;
+  }
+  
+  .form-footer a {
+    color: #666;
+  }
+  
+  .form-footer a:hover {
+    color: #333;
+  }
+  
+  .user-info {
+    background-color: rgba(39, 39, 42, 0.1);
+  }
+  
+  #reset-password-form h4 {
+    color: #333;
+  }
+  
+  .social-divider {
+    color: #999;
+  }
+  
+  .social-divider::before,
+  .social-divider::after {
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .btn-google {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+  }
+  
+  .btn-google:hover {
+    background-color: #f5f5f5;
+  }
+}

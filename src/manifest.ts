@@ -35,7 +35,8 @@ export default defineManifest({
         'css/player.css', 
         'css/panel.css', 
         'css/voiceSelector.css',
-        'css/selectionButton.css'
+        'css/selectionButton.css',
+        'css/auth.css'
       ]
     },
   ],
@@ -55,16 +56,21 @@ export default defineManifest({
         'css/fonts.css',
         'css/voiceSelector.css',
         'css/selectionButton.css',
+        'css/auth.css',
         'fonts/Heiback.otf',
         'assets/play.svg',
         'assets/stop.svg',
         'assets/pause.svg',
-        'assets/spinner.svg'
+        'assets/spinner.svg',
+        'oauth-callback.html'
       ],
       matches: ['<all_urls>'],
     },
   ],
-  permissions: ['sidePanel', 'storage', 'activeTab'],
+  permissions: ['sidePanel', 'storage', 'activeTab', 'identity'],
+  host_permissions: [
+    "https://*.supabase.co/*"
+  ],
   chrome_url_overrides: {
     newtab: 'newtab.html',
   }

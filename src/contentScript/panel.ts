@@ -2,6 +2,10 @@
 import { ICONS } from './utils';
 // Import CSS to help Vite track dependencies
 import '../../css/panel.css';
+import '../../css/auth.css';
+
+// Import Supabase client and auth functions
+import { supabase, signIn, signUp, signOut, resetPassword, getUser, saveUserPreferences, getReadingStats, signInWithGoogle } from '../supabase/client';
 
 export class SidePanel {
   private panelId: string = 'extension-side-panel';
@@ -100,22 +104,129 @@ export class SidePanel {
       </div>
     `;
   }
-  
-  // Click to Listen content removed
 
   private getProfileContent(): string {
     return `
-      <div class="panel-section">
-        <div class="panel-section-title">User Profile</div>
+      <div class="panel-section" id="auth-section">
+        <div class="panel-section-title">User Account</div>
         <div class="panel-section-content">
-          <p>Sign in to save your preferences across devices.</p>
+          <div id="auth-status-loading">
+            <p>Loading authentication status...</p>
+          </div>
+          
+          <div id="auth-logged-out" style="display: none;">
+            <p>Sign in to sync your preferences across devices.</p>
+            
+            <div class="auth-tabs">
+              <button class="auth-tab-btn active" data-tab="login">Login</button>
+              <button class="auth-tab-btn" data-tab="signup">Sign Up</button>
+            </div>
+            
+            <div class="auth-tab-content" id="login-tab">
+              <form id="login-form">
+                <div class="form-group">
+                  <label class="form-label" for="login-email">Email</label>
+                  <input type="email" id="login-email" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label" for="login-password">Password</label>
+                  <input type="password" id="login-password" class="form-control" required>
+                </div>
+                
+                <div class="form-error" id="login-error"></div>
+                
+                <button type="submit" class="btn-primary">Sign In</button>
+                <div class="form-footer">
+                  <a href="#" id="forgot-password">Forgot Password?</a>
+                </div>
+              </form>
+              
+              <div class="social-login">
+                <div class="social-divider"><span>OR</span></div>
+                <button id="google-signin" class="btn-google">
+                  <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+                    <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+                  </svg>
+                  Sign in with Google
+                </button>
+              </div>
+              
+              <div id="reset-password-form" style="display: none;">
+                <h4>Reset Password</h4>
+                <div class="form-group">
+                  <label class="form-label" for="reset-email">Email</label>
+                  <input type="email" id="reset-email" class="form-control" required>
+                </div>
+                
+                <div class="form-error" id="reset-error"></div>
+                <div class="form-success" id="reset-success"></div>
+                
+                <button id="send-reset-email" class="btn-primary">Send Reset Link</button>
+                <button id="back-to-login" class="btn-secondary">Back to Login</button>
+              </div>
+            </div>
+            
+            <div class="auth-tab-content" id="signup-tab" style="display: none;">
+              <form id="signup-form">
+                <div class="form-group">
+                  <label class="form-label" for="signup-email">Email</label>
+                  <input type="email" id="signup-email" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label" for="signup-password">Password</label>
+                  <input type="password" id="signup-password" class="form-control" required minlength="6">
+                  <div class="small-text">Password must be at least 6 characters</div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label" for="signup-confirm-password">Confirm Password</label>
+                  <input type="password" id="signup-confirm-password" class="form-control" required minlength="6">
+                </div>
+                
+                <div class="form-error" id="signup-error"></div>
+                <div class="form-success" id="signup-success"></div>
+                
+                <button type="submit" class="btn-primary">Create Account</button>
+              </form>
+              
+              <div class="social-login">
+                <div class="social-divider"><span>OR</span></div>
+                <button id="google-signup" class="btn-google">
+                  <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+                    <path fill="#FF3D00" d="m6.306 14.691 6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+                    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+                  </svg>
+                  Sign up with Google
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div id="auth-logged-in" style="display: none;">
+            <div class="user-info">
+              <p>Logged in as: <span id="user-email"></span></p>
+              <button id="logout-btn" class="btn-secondary">Sign Out</button>
+            </div>
+            
+            <div class="sync-controls">
+              <button id="sync-settings-btn" class="btn-primary">Sync Current Settings</button>
+              <div id="sync-status"></div>
+            </div>
+          </div>
         </div>
       </div>
       
       <div class="panel-section">
         <div class="panel-section-title">Reading Statistics</div>
-        <div class="panel-section-content">
-          Track your reading habits and progress.
+        <div class="panel-section-content" id="reading-stats">
+          <p>Sign in to track your reading habits and progress.</p>
         </div>
       </div>
     `;
@@ -230,6 +341,17 @@ export class SidePanel {
     // Add panel to page
     document.body.appendChild(panel);
     
+    // Listen for auth state changes from background script
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.action === 'AUTH_STATE_CHANGED') {
+        console.log('[Panel] Auth state changed:', message.authState);
+        // Update UI based on auth state
+        if (this.panelElement) {
+          this.checkAuthState(this.panelElement);
+        }
+      }
+    });
+    
     // Add event listener to close button
     const closeButton = panel.querySelector('.panel-close');
     if (closeButton) {
@@ -265,6 +387,11 @@ export class SidePanel {
         // Update panel content based on selected section
         if (section) {
           this.updatePanelContent(panelContent as HTMLElement, section);
+          
+          // Special case for profile section, check auth state
+          if (section === 'profile') {
+            this.checkAuthState(panel);
+          }
         }
       });
     });
@@ -348,6 +475,7 @@ export class SidePanel {
         break;
       case 'profile':
         contentElement.innerHTML = this.getProfileContent();
+        this.setupAuthHandlers(this.panelElement as HTMLElement);
         break;
       case 'settings':
         contentElement.innerHTML = this.getSettingsContent();
@@ -358,6 +486,490 @@ export class SidePanel {
         break;
       default:
         contentElement.innerHTML = this.getDashboardContent();
+    }
+  }
+  
+  // Check authentication state and update UI accordingly
+  private async checkAuthState(panel: HTMLElement): Promise<void> {
+    console.log('[Auth] Checking auth state...');
+    const loadingElement = panel.querySelector('#auth-status-loading');
+    const loggedOutElement = panel.querySelector('#auth-logged-out');
+    const loggedInElement = panel.querySelector('#auth-logged-in');
+    const userEmailElement = panel.querySelector('#user-email');
+    const readingStatsElement = panel.querySelector('#reading-stats');
+    
+    if (!loadingElement || !loggedOutElement || !loggedInElement) {
+      console.error('[Auth] Auth elements not found in DOM');
+      return;
+    }
+    
+    try {
+      // Get session directly from Supabase
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        throw sessionError;
+      }
+      
+      if (session && session.user) {
+        const user = session.user;
+        console.log('[Auth] User is logged in:', user.email);
+        
+        // Show logged in state
+        loadingElement.setAttribute('style', 'display: none;');
+        loggedOutElement.setAttribute('style', 'display: none;');
+        loggedInElement.setAttribute('style', 'display: block;');
+        
+        // Set user email
+        if (userEmailElement && user.email) {
+          userEmailElement.textContent = user.email;
+        }
+        
+        // Update reading stats if available
+        if (readingStatsElement) {
+          try {
+            const { stats, error } = await getReadingStats(user.id);
+            
+            if (error) {
+              throw error;
+            }
+            
+            if (stats && stats.length > 0) {
+              // Calculate total passages
+              const totalPassages = stats.reduce((total, stat) => total + stat.passage_count, 0);
+              
+              // Get unique websites
+              const uniqueWebsites = new Set(stats.map(stat => stat.website)).size;
+              
+              // Get most active day
+              const dayMap = new Map();
+              stats.forEach(stat => {
+                const date = new Date(stat.read_date);
+                const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+                dayMap.set(day, (dayMap.get(day) || 0) + stat.passage_count);
+              });
+              
+              let mostActiveDay = '';
+              let highestCount = 0;
+              
+              dayMap.forEach((count, day) => {
+                if (count > highestCount) {
+                  highestCount = count;
+                  mostActiveDay = day;
+                }
+              });
+              
+              readingStatsElement.innerHTML = `
+                <p>You've read ${totalPassages} passages across ${uniqueWebsites} websites.</p>
+                ${mostActiveDay ? `<p>Your most active reading day is ${mostActiveDay}.</p>` : ''}
+              `;
+            } else {
+              readingStatsElement.innerHTML = `
+                <p>No reading activity recorded yet.</p>
+                <p>Use the highlighting feature to start tracking your reading!</p>
+              `;
+            }
+          } catch (statsError) {
+            console.error('[Auth] Error fetching reading stats:', statsError);
+            readingStatsElement.innerHTML = `<p>Unable to load reading statistics.</p>`;
+          }
+        }
+      } else {
+        console.log('[Auth] User is not logged in');
+        // Show logged out state
+        loadingElement.setAttribute('style', 'display: none;');
+        loggedOutElement.setAttribute('style', 'display: block;');
+        loggedInElement.setAttribute('style', 'display: none;');
+        
+        // Update reading stats
+        if (readingStatsElement) {
+          readingStatsElement.innerHTML = `<p>Sign in to track your reading habits and progress.</p>`;
+        }
+      }
+    } catch (error) {
+      console.error('[Auth] Error checking auth state:', error);
+      // Show logged out state on error
+      loadingElement.setAttribute('style', 'display: none;');
+      loggedOutElement.setAttribute('style', 'display: block;');
+      loggedInElement.setAttribute('style', 'display: none;');
+    }
+  }
+  
+  // Set up authentication event handlers
+  private setupAuthHandlers(panel: HTMLElement): void {
+    // Check auth state immediately
+    this.checkAuthState(panel);
+    
+    // Set up tab switching
+    const tabButtons = panel.querySelectorAll('.auth-tab-btn');
+    const loginTab = panel.querySelector('#login-tab');
+    const signupTab = panel.querySelector('#signup-tab');
+    const resetForm = panel.querySelector('#reset-password-form');
+    
+    tabButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        // Reset UI state
+        if (resetForm) {
+          resetForm.setAttribute('style', 'display: none;');
+        }
+        
+        // Remove active class from all tab buttons
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Add active class to clicked button
+        const currentButton = e.currentTarget as HTMLElement;
+        currentButton.classList.add('active');
+        
+        // Get the tab to show
+        const tabToShow = currentButton.getAttribute('data-tab');
+        
+        // Show the selected tab
+        if (tabToShow === 'login' && loginTab && signupTab) {
+          loginTab.setAttribute('style', 'display: block;');
+          signupTab.setAttribute('style', 'display: none;');
+        } else if (tabToShow === 'signup' && loginTab && signupTab) {
+          loginTab.setAttribute('style', 'display: none;');
+          signupTab.setAttribute('style', 'display: block;');
+        }
+      });
+    });
+
+    // Google sign-in button
+    const googleSignInButton = panel.querySelector('#google-signin');
+    const googleSignUpButton = panel.querySelector('#google-signup');
+    
+    // Add event listeners for Google sign-in buttons
+    if (googleSignInButton) {
+      googleSignInButton.addEventListener('click', async () => {
+        try {
+          await signInWithGoogle();
+        } catch (error) {
+          console.error('[Auth] Google sign-in error:', error);
+          const loginError = panel.querySelector('#login-error');
+          if (loginError) {
+            loginError.textContent = 'Failed to sign in with Google. Please try again.';
+          }
+        }
+      });
+    }
+    
+    if (googleSignUpButton) {
+      googleSignUpButton.addEventListener('click', async () => {
+        try {
+          await signInWithGoogle();
+        } catch (error) {
+          console.error('[Auth] Google sign-up error:', error);
+          const signupError = panel.querySelector('#signup-error');
+          if (signupError) {
+            signupError.textContent = 'Failed to sign up with Google. Please try again.';
+          }
+        }
+      });
+    }
+    
+    // Login form
+    const loginForm = panel.querySelector('#login-form');
+    const loginError = panel.querySelector('#login-error');
+    
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const emailInput = loginForm.querySelector('#login-email') as HTMLInputElement;
+        const passwordInput = loginForm.querySelector('#login-password') as HTMLInputElement;
+        
+        if (!emailInput || !passwordInput) {
+          console.error('[Auth] Login form inputs not found');
+          return;
+        }
+        
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        
+        if (!email || !password) {
+          if (loginError) {
+            loginError.textContent = 'Please enter both email and password';
+          }
+          return;
+        }
+        
+        try {
+          // Clear previous errors
+          if (loginError) {
+            loginError.textContent = '';
+          }
+          
+          // Sign in with Supabase
+          console.log('[Auth] Attempting to sign in with:', email);
+          const { data, error } = await signIn(email, password);
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Successfully signed in
+          console.log('[Auth] Sign in successful:', data);
+          
+          // Check auth state to update UI
+          this.checkAuthState(panel);
+          
+          // Clear form
+          emailInput.value = '';
+          passwordInput.value = '';
+        } catch (error: any) {
+          console.error('[Auth] Sign in error:', error);
+          
+          if (loginError) {
+            loginError.textContent = error.message || 'Failed to sign in. Please try again.';
+          }
+        }
+      });
+    }
+    
+    // Signup form
+    const signupForm = panel.querySelector('#signup-form');
+    const signupError = panel.querySelector('#signup-error');
+    const signupSuccess = panel.querySelector('#signup-success');
+    
+    if (signupForm) {
+      signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const emailInput = signupForm.querySelector('#signup-email') as HTMLInputElement;
+        const passwordInput = signupForm.querySelector('#signup-password') as HTMLInputElement;
+        const confirmInput = signupForm.querySelector('#signup-confirm-password') as HTMLInputElement;
+        
+        if (!emailInput || !passwordInput || !confirmInput) {
+          console.error('[Auth] Signup form inputs not found');
+          return;
+        }
+        
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmInput.value;
+        
+        // Clear previous messages
+        if (signupError) {
+          signupError.textContent = '';
+        }
+        if (signupSuccess) {
+          signupSuccess.textContent = '';
+        }
+        
+        // Validate inputs
+        if (!email || !password || !confirmPassword) {
+          if (signupError) {
+            signupError.textContent = 'Please fill in all fields';
+          }
+          return;
+        }
+        
+        if (password !== confirmPassword) {
+          if (signupError) {
+            signupError.textContent = 'Passwords do not match';
+          }
+          return;
+        }
+        
+        if (password.length < 6) {
+          if (signupError) {
+            signupError.textContent = 'Password must be at least 6 characters';
+          }
+          return;
+        }
+        
+        try {
+          // Sign up with Supabase
+          console.log('[Auth] Attempting to sign up with:', email);
+          const { data, error } = await signUp(email, password);
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Successfully signed up
+          console.log('[Auth] Sign up successful:', data);
+          
+          if (signupSuccess) {
+            signupSuccess.textContent = 'Account created! Please check your email to confirm your account.';
+          }
+          
+          // Clear form
+          emailInput.value = '';
+          passwordInput.value = '';
+          confirmInput.value = '';
+        } catch (error: any) {
+          console.error('[Auth] Sign up error:', error);
+          
+          if (signupError) {
+            signupError.textContent = error.message || 'Failed to create account. Please try again.';
+          }
+        }
+      });
+    }
+    
+    // Logout button
+    const logoutButton = panel.querySelector('#logout-btn');
+    
+    if (logoutButton) {
+      logoutButton.addEventListener('click', async () => {
+        try {
+          console.log('[Auth] Attempting to sign out');
+          const { error } = await signOut();
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Successfully signed out
+          console.log('[Auth] Sign out successful');
+          
+          // Check auth state to update UI
+          this.checkAuthState(panel);
+        } catch (error) {
+          console.error('[Auth] Sign out error:', error);
+        }
+      });
+    }
+    
+    // Forgot password link
+    const forgotPasswordLink = panel.querySelector('#forgot-password');
+    
+    if (forgotPasswordLink && loginTab && resetForm) {
+      forgotPasswordLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginTab.setAttribute('style', 'display: none;');
+        resetForm.setAttribute('style', 'display: block;');
+      });
+    }
+    
+    // Back to login button
+    const backToLoginButton = panel.querySelector('#back-to-login');
+    
+    if (backToLoginButton && loginTab && resetForm) {
+      backToLoginButton.addEventListener('click', () => {
+        resetForm.setAttribute('style', 'display: none;');
+        loginTab.setAttribute('style', 'display: block;');
+      });
+    }
+    
+    // Send reset email button
+    const sendResetButton = panel.querySelector('#send-reset-email');
+    const resetError = panel.querySelector('#reset-error');
+    const resetSuccess = panel.querySelector('#reset-success');
+    
+    if (sendResetButton) {
+      sendResetButton.addEventListener('click', async () => {
+        const resetEmailInput = panel.querySelector('#reset-email') as HTMLInputElement;
+        
+        if (!resetEmailInput) {
+          console.error('[Auth] Reset email input not found');
+          return;
+        }
+        
+        const email = resetEmailInput.value.trim();
+        
+        // Clear previous messages
+        if (resetError) {
+          resetError.textContent = '';
+        }
+        if (resetSuccess) {
+          resetSuccess.textContent = '';
+        }
+        
+        if (!email) {
+          if (resetError) {
+            resetError.textContent = 'Please enter your email';
+          }
+          return;
+        }
+        
+        try {
+          console.log('[Auth] Sending password reset email to:', email);
+          const { data, error } = await resetPassword(email);
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Successfully sent reset email
+          console.log('[Auth] Password reset email sent');
+          
+          if (resetSuccess) {
+            resetSuccess.textContent = 'Password reset email sent. Please check your inbox.';
+          }
+          
+          // Clear form
+          resetEmailInput.value = '';
+        } catch (error: any) {
+          console.error('[Auth] Password reset error:', error);
+          
+          if (resetError) {
+            resetError.textContent = error.message || 'Failed to send reset email. Please try again.';
+          }
+        }
+      });
+    }
+    
+    // Sync settings button
+    const syncButton = panel.querySelector('#sync-settings-btn');
+    const syncStatus = panel.querySelector('#sync-status');
+    
+    if (syncButton) {
+      syncButton.addEventListener('click', async () => {
+        if (!syncStatus) {
+          return;
+        }
+        
+        try {
+          syncStatus.textContent = 'Syncing settings...';
+          syncStatus.className = '';
+          
+          // Get current user
+          const { user, error } = await getUser();
+          
+          if (error || !user) {
+            throw new Error('Not logged in');
+          }
+          
+          // Get current settings
+          chrome.storage.local.get([
+            'apiKey',
+            'selectedModel',
+            'playbackSpeed',
+            'highlightEnabled',
+            'selectionButtonColor'
+          ], async (settings) => {
+            try {
+              // Save settings to Supabase
+              const { error } = await saveUserPreferences(user.id, settings);
+              
+              if (error) {
+                throw error;
+              }
+              
+              console.log('[Auth] Settings synced successfully');
+              syncStatus.textContent = 'Settings synced successfully!';
+              syncStatus.className = 'form-success';
+              
+              // Clear status after a few seconds
+              setTimeout(() => {
+                if (syncStatus) {
+                  syncStatus.textContent = '';
+                }
+              }, 3000);
+            } catch (error: any) {
+              console.error('[Auth] Error syncing settings:', error);
+              syncStatus.textContent = error.message || 'Failed to sync settings. Please try again.';
+              syncStatus.className = 'form-error';
+            }
+          });
+        } catch (error: any) {
+          console.error('[Auth] Error syncing settings:', error);
+          syncStatus.textContent = error.message || 'Failed to sync settings. Please try again.';
+          syncStatus.className = 'form-error';
+        }
+      });
     }
   }
   
@@ -511,8 +1123,6 @@ export class SidePanel {
           });
         });
       }
-      
-      // Click-to-listen related code removed
       
       // Reset button
       if (resetButton) {

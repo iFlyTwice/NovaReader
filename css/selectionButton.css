@@ -10,6 +10,7 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
   padding: 5px;
   display: none;
+  visibility: hidden; /* Add visibility hidden by default for extra certainty */
   transition: transform 0.2s ease-in-out;
 }
 

@@ -192,23 +192,26 @@ export class VoiceSelector {
       this.voices = [...this.fallbackVoices];
     }
     
-    // Add header
-    const header = document.createElement('div');
-    header.className = 'voice-selector-header';
+    // Create a top header with just the title
+    const topHeader = document.createElement('div');
+    topHeader.className = 'voice-selector-top-header';
     
     const headerTitle = document.createElement('div');
     headerTitle.className = 'voice-selector-title';
     headerTitle.textContent = 'Choose Voice';
     
-    const closeButton = this.createButton('close', 'Close', () => {
-      this.remove();
-      // Add visual feedback
-      this.addClickEffect(closeButton);
-    });
-    closeButton.className = 'voice-selector-close-button';
+    topHeader.appendChild(headerTitle);
     
-    header.appendChild(headerTitle);
-    header.appendChild(closeButton);
+    // Add a container for the current voice display (will be shown after selection)
+    const currentVoiceContainer = document.createElement('div');
+    currentVoiceContainer.id = 'current-voice-display';
+    currentVoiceContainer.className = 'current-voice-display';
+    currentVoiceContainer.style.display = 'none'; // Hidden by default
+    
+    // Main header for current voice
+    const header = document.createElement('div');
+    header.className = 'voice-selector-header';
+    header.appendChild(currentVoiceContainer);
     
     // Add search bar
     const searchContainer = document.createElement('div');
@@ -259,18 +262,35 @@ export class VoiceSelector {
         if (voiceId) {
           console.log(`Saving selected voice: ${voiceId}`);
           
+          // Get voice info for display
+          const voiceName = selectedVoice.querySelector('.voice-name')?.textContent || '';
+          const voiceDetails = selectedVoice.querySelector('.voice-details')?.textContent || '';
+          
+          // Update the current voice display
+          this.updateCurrentVoiceDisplay(voiceName, voiceDetails);
+          
           // Save the selection to Chrome storage
-          chrome.storage.local.set({ selectedVoiceId: voiceId }, () => {
+          chrome.storage.local.set({ 
+            selectedVoiceId: voiceId,
+            selectedVoiceName: voiceName,
+            selectedVoiceDetails: voiceDetails
+          }, () => {
             console.log('Voice selection saved to storage');
             
             // Dispatch an event to notify other components of the voice change
             const event = new CustomEvent('voice-selected', { 
-              detail: { voiceId } 
+              detail: { voiceId, voiceName, voiceDetails } 
             });
             document.dispatchEvent(event);
             
-            // Close the selector
-            this.remove();
+            // Don't close the selector, just show the current selection at the top
+            // this.remove();
+            
+            // Add visual feedback for save button
+            saveButton.textContent = 'Selection Saved!';
+            setTimeout(() => {
+              saveButton.textContent = 'Save Selection';
+            }, 1500);
           });
         }
       } else {
@@ -284,6 +304,7 @@ export class VoiceSelector {
     });
     
     // Append all elements to selector
+    selector.appendChild(topHeader);
     selector.appendChild(header);
     selector.appendChild(searchContainer);
     selector.appendChild(voiceList);
@@ -292,6 +313,9 @@ export class VoiceSelector {
     // Add selector to page
     document.body.appendChild(selector);
     this.selectorElement = selector;
+    
+    // Load the currently selected voice if available
+    this.loadCurrentVoice();
   }
   
   private createButton(iconName: keyof typeof ICONS, title: string, clickHandler: () => void): HTMLElement {
@@ -353,6 +377,31 @@ export class VoiceSelector {
     });
   }
   
+  // Update the current voice display with the selected voice info
+  private updateCurrentVoiceDisplay(voiceName: string, voiceDetails: string): void {
+    const currentVoiceDisplay = document.getElementById('current-voice-display');
+    if (!currentVoiceDisplay) return;
+    
+    // Clear previous content
+    currentVoiceDisplay.innerHTML = '';
+    
+    // Create elements for voice info
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'current-voice-name';
+    nameSpan.textContent = voiceName;
+    
+    const detailsSpan = document.createElement('span');
+    detailsSpan.className = 'current-voice-details';
+    detailsSpan.textContent = voiceDetails;
+    
+    // Append to container
+    currentVoiceDisplay.appendChild(nameSpan);
+    currentVoiceDisplay.appendChild(detailsSpan);
+    
+    // Show the container
+    currentVoiceDisplay.style.display = 'flex';
+  }
+  
   public updatePosition(isPanelOpen: boolean): void {
     const selector = document.getElementById(this.selectorId);
     if (selector) {
@@ -366,5 +415,29 @@ export class VoiceSelector {
       
       console.log(`Voice selector updated position. Panel open: ${isPanelOpen}`);
     }
+  }
+  
+  // Load and display the currently selected voice when the selector is opened
+  private loadCurrentVoice(): void {
+    chrome.storage.local.get(['selectedVoiceId', 'selectedVoiceName', 'selectedVoiceDetails'], (result) => {
+      if (result.selectedVoiceId && result.selectedVoiceName) {
+        console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId})`);
+        
+        // Update the display
+        this.updateCurrentVoiceDisplay(result.selectedVoiceName, result.selectedVoiceDetails || '');
+        
+        // Also highlight the corresponding voice in the list if it exists
+        const voiceOption = document.querySelector(`.voice-option[data-voice-id="${result.selectedVoiceId}"]`);
+        if (voiceOption) {
+          // Remove active class from all options
+          document.querySelectorAll('.voice-option').forEach(el => {
+            el.classList.remove('active');
+          });
+          
+          // Add active class to the selected option
+          voiceOption.classList.add('active');
+        }
+      }
+    });
   }
 }

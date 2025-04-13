@@ -138,8 +138,8 @@ export class SidePlayer {
       this.addClickEffect(screenshotButton);
     });
     
-    // Select Voice button (replaces Waveform button)
-    const selectVoiceButton = this.createButton('waveform', 'Select Voice', () => {
+    // Select Voice button with microphone icon
+    const selectVoiceButton = this.createButton('microphone', 'Select Voice', () => {
       console.log('Select Voice clicked');
       // Dispatch event to toggle voice selector
       const event = new CustomEvent('toggle-voice-selector');

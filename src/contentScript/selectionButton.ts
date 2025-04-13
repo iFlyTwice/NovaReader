@@ -10,14 +10,86 @@ export class SelectionButton {
   private buttonElement: HTMLElement | null = null;
   private currentState: 'play' | 'loading' | 'speaking' = 'play';
   private selectedText: string = '';
+  private isEnabled: boolean = true; // Default to enabled
+  private buttonColor: string = '#27272a'; // Default zinc color
 
   constructor() {
     // Verify that assets are available
     this.verifyAssets();
-    // Create the button element when instantiated
-    this.createButton();
-    // Set up the selection change listener
-    this.setupSelectionListener();
+    
+    // Load settings from storage first, to avoid showing button if disabled
+    this.loadSettingsAndInitialize();
+  }
+  
+  // Modified method to load settings first, then initialize other components
+  private loadSettingsAndInitialize(): void {
+    chrome.storage.local.get(['highlightEnabled', 'selectionButtonColor'], (result) => {
+      // Set the enable state
+      if (result.highlightEnabled !== undefined) {
+        this.isEnabled = result.highlightEnabled;
+        console.log(`[SelectionButton] Initial highlighting state: ${this.isEnabled ? 'enabled' : 'disabled'}`);
+      }
+      
+      // Set the button color
+      if (result.selectionButtonColor) {
+        this.buttonColor = result.selectionButtonColor;
+        console.log(`[SelectionButton] Initial button color: ${this.buttonColor}`);
+      }
+      
+      // Only now create the button (with correct initial state)
+      this.createButton();
+      
+      // Set up the selection change listener
+      this.setupSelectionListener();
+      
+      // Setup event listeners for settings changes
+      this.setupSettingsListeners();
+    });
+  }
+  
+  // The loadSettings method has been replaced by loadSettingsAndInitialize
+  
+  // Set up listeners for settings changes
+  private setupSettingsListeners(): void {
+    // Listen for highlight state changes
+    document.addEventListener('update-highlighting-state', (event: any) => {
+      const { enabled } = event.detail;
+      this.isEnabled = enabled;
+      console.log(`[SelectionButton] Highlighting ${enabled ? 'enabled' : 'disabled'}`);
+      
+      // Always hide button if disabled, regardless of current state
+      if (!enabled && this.buttonElement) {
+        // Apply multiple hiding methods
+        this.hideButton();
+        // Force style to none for extra certainty
+        this.buttonElement.style.display = "none";
+        this.buttonElement.style.visibility = "hidden";
+        
+        // Set a timeout to enforce hiding again (catches race conditions)
+        setTimeout(() => {
+          if (this.buttonElement && !this.isEnabled) {
+            console.log('[SelectionButton] Double-checking button is hidden');
+            this.buttonElement.style.display = "none";
+            this.buttonElement.style.visibility = "hidden";
+          }
+        }, 100);
+      } else if (enabled) {
+        // When re-enabled, check current selection to see if button should be shown
+        this.handleSelectionChange();
+      }
+    });
+    
+    // Listen for color changes
+    document.addEventListener('update-selection-button-color', (event: any) => {
+      const { color } = event.detail;
+      this.buttonColor = color;
+      console.log(`[SelectionButton] Color updated to ${color}`);
+      
+      // Update button color if it exists
+      if (this.buttonElement) {
+        this.buttonElement.style.backgroundColor = color;
+      }
+    });
   }
   
   // Verify that required assets are available
@@ -62,7 +134,14 @@ export class SelectionButton {
     button.alt = "Text to speech button";
     button.setAttribute("role", "button");
     button.src = chrome.runtime.getURL("assets/play.svg"); // Make sure path is correct
-    button.style.display = "none"; // Initially hidden
+    
+    // Explicitly set display and visibility based on enabled state
+    button.style.display = "none"; // Always start hidden
+    button.style.visibility = "hidden"; // Add extra visibility property
+    console.log(`[SelectionButton] Creating button with highlighting ${this.isEnabled ? 'enabled' : 'disabled'}`);
+    
+    // Set the button color from settings
+    button.style.backgroundColor = this.buttonColor;
     
     // Add click event
     button.addEventListener('click', () => {
@@ -81,6 +160,17 @@ export class SelectionButton {
   }
 
   private handleSelectionChange(): void {
+    // CRITICAL CHECK: If highlighting is disabled, don't show the button under any circumstances
+    if (!this.isEnabled) {
+      this.hideButton();
+      // Double ensure the button is hidden
+      if (this.buttonElement) {
+        this.buttonElement.style.display = "none";
+        this.buttonElement.style.visibility = "hidden";
+      }
+      return;
+    }
+    
     const selection = window.getSelection();
 
     if (!selection || !selection.anchorNode || !selection.focusNode) {
@@ -114,9 +204,27 @@ export class SelectionButton {
         const lastRect = rects[rects.length - 1];
         
         if (lastRect && this.buttonElement) {
+          // Ensure the button has the correct color
+          this.buttonElement.style.backgroundColor = this.buttonColor;
+          
+          // Double-check that highlighting is still enabled
+          if (!this.isEnabled) {
+            this.hideButton();
+            return;
+          }
+          
+          // FINAL CHECK: Only show the button if highlighting is enabled
+          if (!this.isEnabled) {
+            // Don't show the button if highlighting is disabled
+            this.hideButton();
+            return;
+          }
+          
+          // Position the button
           this.buttonElement.style.left = window.scrollX + lastRect.right + "px";
           this.buttonElement.style.top = window.scrollY + lastRect.bottom + "px";
           this.buttonElement.style.display = "block";
+          this.buttonElement.style.visibility = "visible"; // Ensure visibility is also set
         }
       } else {
         this.hideButton();
@@ -126,11 +234,26 @@ export class SelectionButton {
     }
   }
 
-  private hideButton(): void {
+  // Modified to be public so it can be used by ParagraphListener
+  public hideButton(): void {
     if (this.buttonElement) {
       this.buttonElement.style.display = "none";
+      this.buttonElement.style.visibility = "hidden"; // Add extra visibility property for redundancy
     }
     this.selectedText = '';
+  }
+  
+  // New method to explicitly show button at a position (for ParagraphListener)
+  public showButtonAt(left: number, top: number): void {
+    if (!this.buttonElement) return;
+    
+    // Position the button
+    this.buttonElement.style.left = left + "px";
+    this.buttonElement.style.top = top + "px";
+    
+    // Show the button
+    this.buttonElement.style.display = "block";
+    this.buttonElement.style.visibility = "visible";
   }
 
   private handleButtonClick(): void {

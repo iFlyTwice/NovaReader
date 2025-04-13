@@ -13,6 +13,35 @@
   transition: right 0.3s ease-in-out;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   border-left: 1px solid #333;
+  /* Add padding to prevent content from being hidden behind scrollbar */
+  padding-right: 6px;
+}
+
+/* Custom scrollbar for panel - matching voice selector style */
+#extension-side-panel::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#extension-side-panel::-webkit-scrollbar-track {
+  background: rgba(42, 42, 42, 0.1);
+  border-radius: 10px;
+  margin: 3px 0;
+}
+
+#extension-side-panel::-webkit-scrollbar-thumb {
+  background: #27272a; /* Zinc-800 - dark zinc color to match other components */
+  border-radius: 10px;
+}
+
+#extension-side-panel::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
+}
+
+/* Firefox specific scrollbar */
+#extension-side-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a rgba(42, 42, 42, 0.1);
 }
 
 #extension-side-panel.open {
@@ -34,7 +63,7 @@
 }
 
 .panel-logo-icon {
-  background-color: #5664d2;
+  background-color: #27272a; /* Zinc-800 - dark zinc color to match other components */
   color: white;
   width: 28px;
   height: 28px;
@@ -112,6 +141,150 @@
   line-height: 1.5;
 }
 
+/* Form controls styling */
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.form-control {
+  width: 100%;
+  background-color: #3a3a3a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  border-color: #27272a;
+  box-shadow: 0 0 0 2px rgba(39, 39, 42, 0.2);
+}
+
+/* Custom select styling */
+.custom-select {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.custom-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  background-color: #3a3a3a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 32px 8px 10px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.custom-select select:focus {
+  border-color: #27272a;
+  box-shadow: 0 0 0 2px rgba(39, 39, 42, 0.2);
+}
+
+.custom-select::after {
+  content: '▼';
+  font-size: 10px;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #aaa;
+}
+
+/* Switch/toggle controls */
+.switch-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.switch-label {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #555;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #27272a;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #27272a;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Color picker styling */
+.color-picker-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.color-preview {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #444;
+}
+
 /* API Key section */
 .api-key-section {
   display: flex;
@@ -134,8 +307,51 @@
   box-shadow: 0 0 0 2px rgba(86, 100, 210, 0.2);
 }
 
+/* Button styles */
+.btn-primary {
+  background-color: #27272a; /* Zinc-800 - dark zinc color */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.btn-primary:hover {
+  background-color: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
+}
+
+.btn-secondary {
+  background-color: #3f3f46; /* Zinc-700 */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.btn-secondary:hover {
+  background-color: #52525b; /* Zinc-600 - slightly lighter for hover state */
+}
+
+.small-text {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
 #save-api-key {
-  background-color: #5664d2;
+  background-color: #27272a; /* Zinc-800 - dark zinc color */
   color: white;
   border: none;
   border-radius: 4px;
@@ -144,10 +360,11 @@
   cursor: pointer;
   transition: background-color 0.2s;
   align-self: flex-start;
+  margin-top: 8px;
 }
 
 #save-api-key:hover {
-  background-color: #4553c1;
+  background-color: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
 }
 
 .api-key-status {
@@ -181,13 +398,13 @@
 .nav-item:hover {
   background-color: #2a2a2a;
   color: #fff;
-  border-left-color: #5664d2;
+  border-left-color: #27272a; /* Zinc-800 - dark zinc color */
 }
 
 .nav-item.active {
   background-color: #2a2a2a;
   color: #fff;
-  border-left-color: #5664d2;
+  border-left-color: #27272a; /* Zinc-800 - dark zinc color */
 }
 
 .nav-item-icon {
@@ -234,6 +451,24 @@
     background-color: #f5f5f5;
     color: #333;
     border-left: 1px solid #ddd;
+  }
+  
+  /* Light theme scrollbar */
+  #extension-side-panel::-webkit-scrollbar-track {
+    background: rgba(200, 200, 200, 0.2);
+  }
+  
+  #extension-side-panel::-webkit-scrollbar-thumb {
+    background: #d1d1d6; /* Light gray for light theme */
+  }
+  
+  #extension-side-panel::-webkit-scrollbar-thumb:hover {
+    background: #c7c7cc; /* Slightly darker on hover */
+  }
+  
+  /* Firefox specific scrollbar - light theme */
+  #extension-side-panel {
+    scrollbar-color: #d1d1d6 rgba(200, 200, 200, 0.2);
   }
   
   .panel-header {

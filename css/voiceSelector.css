@@ -26,14 +26,52 @@
   right: 450px; /* Panel open: 370px (player right) + 60px (player width) + 20px (gap) */
 }
 
+.voice-selector-top-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 12px 8px 12px;
+  text-align: center;
+  position: relative;
+}
+
 .voice-selector-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid #333;
   text-align: center;
+  position: relative;
+  flex-wrap: wrap;
+}
+
+/* Current voice display styles */
+.current-voice-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #27272a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  width: 100%;
+  font-size: 14px;
+  color: #fff;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.current-voice-name {
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.current-voice-details {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Search bar container */
@@ -104,31 +142,7 @@
   color: #fff;
   font-family: 'Heiback', sans-serif !important;
   letter-spacing: 1px;
-  flex-grow: 1;
   text-align: center;
-}
-
-.voice-selector-close-button {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #fff;
-  background-color: transparent;
-  transition: all 0.2s ease-in-out;
-}
-
-.voice-selector-close-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.voice-selector-close-button svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
 }
 
 .voice-selector-list {
@@ -187,7 +201,9 @@
   position: relative;
   text-align: center; /* Center the text */
   padding-left: 50px; /* Add space for the play button on the left */
+  padding-right: 30px; /* Add space for the checkmark on the right */
   margin-right: 10px; /* Margin on the right for spacing from scrollbar */
+  border-left: 3px solid transparent; /* Transparent border for consistent sizing with active state */
 }
 
 .voice-option:hover {
@@ -196,6 +212,19 @@
 
 .voice-option.active {
   background-color: #27272a; /* Zinc-800 - dark zinc color to match other components */
+  border-left: 3px solid #5664d2; /* Add a highlight on the left side */
+  position: relative;
+}
+
+/* Checkmark indicator for active voice */
+.voice-option.active::after {
+  content: '✓';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #5664d2;
+  font-size: 16px;
+  font-weight: bold;
 }
 
 .voice-name {
@@ -268,10 +297,22 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
+  position: relative;
 }
 
 .voice-selector-save-button:hover {
   background-color: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
+}
+
+.voice-selector-save-button.error {
+  animation: shake 0.4s ease-in-out;
+  background-color: #ef4444; /* Red-500 - error color */
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
 }
 
 .selector-button {
@@ -305,21 +346,29 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
   }
   
+  .voice-selector-top-header {
+    color: #333;
+  }
+  
   .voice-selector-header {
     border-bottom: 1px solid #ddd;
+  }
+  
+  .current-voice-display {
+    background-color: #5664d2;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .current-voice-details {
+    color: rgba(255, 255, 255, 0.9);
   }
   
   .voice-selector-title {
     color: #333;
   }
   
-  .voice-selector-close-button {
-    color: #333;
-  }
-  
-  .voice-selector-close-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
+
   
   .voice-option {
     background-color: #e8e8e8;
@@ -331,6 +380,11 @@
   
   .voice-option.active {
     background-color: #5664d2;
+    border-left-color: #333;
+  }
+  
+  .voice-option.active::after {
+    color: #fff; /* White checkmark for better visibility on colored background */
   }
   
   .voice-name {

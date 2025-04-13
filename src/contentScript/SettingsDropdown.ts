@@ -143,12 +143,16 @@ export class SettingsDropdown {
       });
     });
     
-    // Settings option click
+    // Settings option click - open the panel
     const settingsItem = this.dropdownElement.querySelector('[data-action="settings"]');
     if (settingsItem) {
       settingsItem.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.props.onSettingsClick();
+        
+        // Use the same toggle-panel event that the panel.ts uses
+        const togglePanelEvent = new CustomEvent('toggle-panel');
+        document.dispatchEvent(togglePanelEvent);
+        
         this.close();
       });
     }

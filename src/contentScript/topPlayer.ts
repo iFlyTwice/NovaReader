@@ -4,6 +4,7 @@ import '../../css/top-player.css';
 // Import Icons
 import { ICONS } from './utils';
 import { SettingsDropdown, SettingsDropdownProps } from './SettingsDropdown';
+import { AudioStreamPlayer } from './audioPlayer';
 
 export class TopPlayer {
   private playerId: string = 'nova-top-player';
@@ -14,8 +15,205 @@ export class TopPlayer {
   private duration: string = '12 min';
   private settingsDropdown: SettingsDropdown | null = null;
   
+  // Audio player for text-to-speech
+  private audioPlayer: AudioStreamPlayer;
+  
+  // Current page text
+  private pageText: string = '';
+  
+  // Default voice settings
+  private defaultVoiceId: string = '21m00Tcm4TlvDq8ikWAM'; // Example: Adam voice
+  private defaultModelId: string = 'eleven_turbo_v2';
+  
   constructor() {
-    // No need to inject styles separately as they're included in manifest
+    // Initialize the audio player
+    this.audioPlayer = new AudioStreamPlayer();
+    
+    // Set up callbacks for audio player events
+    this.audioPlayer.setCallbacks({
+      onPlaybackStart: () => this.handlePlaybackStart(),
+      onPlaybackEnd: () => this.handlePlaybackEnd(),
+      onPlaybackError: (error) => this.handlePlaybackError(error),
+      onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+    });
+    
+    // Extract page text for the "Listen to This Page" feature
+    this.extractPageText();
+  }
+  
+  // All paragraphs on the page
+  private paragraphs: string[] = [];
+  
+  // Current paragraph index
+  private currentParagraphIndex: number = 0;
+  
+  // Extract the main text content from the page in paragraphs
+  private extractPageText(): void {
+    console.log('[TopPlayer] Extracting page text...');
+    
+    try {
+      // Find the main content container
+      let mainContent = document.querySelector('body');
+      
+      // Coursera-specific selector - with better targeting 
+      if (window.location.hostname.includes('coursera.org')) {
+        const possibleContentContainers = [
+          document.querySelector('.rc-CML'),
+          document.querySelector('.item-page-content'),
+          document.querySelector('.rc-DesktopLayout')
+        ];
+        
+        for (const container of possibleContentContainers) {
+          if (container) {
+            mainContent = container;
+            console.log('[TopPlayer] Found Coursera-specific content container');
+            break;
+          }
+        }
+      } else {
+        // Try common content selectors for other sites
+        const contentSelectors = [
+          'article', 'main', '.article-content', '.post-content', '.entry-content',
+          '.content', '#content', '.main-content'
+        ];
+        
+        for (const selector of contentSelectors) {
+          const container = document.querySelector(selector);
+          if (container) {
+            mainContent = container;
+            console.log(`[TopPlayer] Found content container: ${selector}`);
+            break;
+          }
+        }
+      }
+      
+      // Get text directly from the DOM structure
+      // Specifically, start looking for text AFTER the top player to avoid picking up text before it
+      // Find our own element first
+      const topPlayerElement = document.getElementById(this.playerId);
+      let startElement = null;
+      
+      if (topPlayerElement) {
+        console.log('[TopPlayer] Found top player element, will extract text after it');
+        
+        // Find the next sibling element or parent's next sibling
+        let current = topPlayerElement;
+        while (current && !startElement) {
+          // Check next sibling
+          if (current.nextElementSibling) {
+            startElement = current.nextElementSibling;
+            break;
+          }
+          
+          // Move up to parent and try again
+          current = current.parentElement;
+        }
+      }
+      
+      // If we couldn't find a good starting element, just use the main content
+      if (!startElement) {
+        startElement = mainContent;
+        console.log('[TopPlayer] Using main content as starting element');
+      }
+      
+      // Collect all text nodes under the start element
+      const paragraphs: string[] = [];
+      const processNode = (node: Node) => {
+        // Skip the player element if we encounter it
+        if (node === topPlayerElement) {
+          return;
+        }
+        
+        // Process text nodes
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text && text.length > 25) { // Longer threshold to avoid small fragments
+            paragraphs.push(text);
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          // Skip certain elements
+          const tagName = (node as Element).tagName.toLowerCase();
+          if (['script', 'style', 'noscript', 'svg', 'nav', 'header', 'footer'].includes(tagName)) {
+            return;
+          }
+          
+          // For paragraph-like elements, get their full text content
+          if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'div'].includes(tagName)) {
+            const text = node.textContent?.trim();
+            if (text && text.length > 25) {
+              paragraphs.push(text);
+              return; // Skip processing children individually
+            }
+          }
+          
+          // Process children for other elements
+          node.childNodes.forEach(child => processNode(child));
+        }
+      };
+      
+      // Process the start element
+      processNode(startElement);
+      
+      // If we didn't find any paragraphs, try a more aggressive approach
+      if (paragraphs.length === 0) {
+        console.log('[TopPlayer] No paragraphs found, using fallback text extraction');
+        
+        // Get all paragraph-like elements
+        const paragraphElements = mainContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, div:not(:has(*))');
+        
+        paragraphElements.forEach(el => {
+          // Skip empty elements and very short text
+          const text = el.textContent?.trim();
+          if (text && text.length > 25) {
+            paragraphs.push(text);
+          }
+        });
+        
+        // If still no paragraphs, split by line breaks
+        if (paragraphs.length === 0) {
+          const text = mainContent.innerText;
+          const chunks = text.split(/\n\s*\n/);
+          
+          chunks.forEach(chunk => {
+            const trimmed = chunk.trim();
+            if (trimmed && trimmed.length > 25) {
+              paragraphs.push(trimmed);
+            }
+          });
+        }
+      }
+      
+      // Remove duplicates and save
+      this.paragraphs = [...new Set(paragraphs)];
+      
+      // Set initial text to the first paragraph if available
+      this.currentParagraphIndex = 0;
+      if (this.paragraphs.length > 0) {
+        this.pageText = this.paragraphs[0];
+      }
+      
+      // Get total word count for all paragraphs
+      const wordCount = this.paragraphs.reduce((count, paragraph) => {
+        return count + paragraph.split(/\s+/).length;
+      }, 0);
+      
+      // Estimate reading time (assuming average reading speed of 200 words per minute)
+      const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
+      
+      // Update the duration display
+      this.duration = `${readingTimeMinutes} min`;
+      
+      console.log(`[TopPlayer] Extracted ${this.paragraphs.length} paragraphs with ${wordCount} words, estimated reading time: ${readingTimeMinutes} minutes`);
+      
+      // Debug output for first few paragraphs
+      if (this.paragraphs.length > 0) {
+        console.log('[TopPlayer] First paragraph:', this.paragraphs[0].substring(0, 100) + '...');
+      } else {
+        console.error('[TopPlayer] No paragraphs were extracted');
+      }
+    } catch (error) {
+      console.error('[TopPlayer] Error extracting page text:', error);
+    }
   }
   
   private getPlayerHTML(): string {
@@ -76,6 +274,64 @@ export class TopPlayer {
     
     // Set up event handlers
     this.setupEventHandlers();
+    
+    // Listen for toggle-panel event (from the dropdown settings option)
+    document.addEventListener('toggle-panel', () => {
+      console.log('[TopPlayer] Received toggle-panel event');
+      // Dispatch an event that the parent content script can listen for
+      const event = new CustomEvent('open-panel');
+      document.dispatchEvent(event);
+    });
+    
+    // Extract page text after a short delay to ensure the DOM is settled
+    setTimeout(() => {
+      this.extractPageText();
+      
+      // If no paragraphs were found, try again with a different approach
+      if (this.paragraphs.length === 0) {
+        console.log('[TopPlayer] No paragraphs found on first attempt, trying fallback method');
+        // Use a simpler but more aggressive extraction method
+        this.fallbackTextExtraction();
+      }
+    }, 1000);
+  }
+  
+  // Fallback method for text extraction that's more aggressive
+  private fallbackTextExtraction(): void {
+    console.log('[TopPlayer] Using fallback text extraction method');
+    
+    try {
+      // Get all visible text on the page
+      const allText = document.body.innerText;
+      
+      // Split by various separators
+      const rawParagraphs = allText.split(/\n+|\.\s+|。|！|？|\?|!|;|；/g);
+      
+      // Filter and clean
+      this.paragraphs = rawParagraphs
+        .filter(p => {
+          const cleaned = p.trim();
+          // Keep only substantial text chunks
+          return cleaned.length > 30 && cleaned.split(/\s+/).length > 5;
+        })
+        .map(p => p.trim());
+      
+      // Update page text and duration
+      if (this.paragraphs.length > 0) {
+        this.pageText = this.paragraphs[0];
+        
+        // Calculate word count and reading time
+        const wordCount = this.paragraphs.reduce((count, p) => count + p.split(/\s+/).length, 0);
+        const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
+        this.duration = `${readingTimeMinutes} min`;
+        
+        console.log(`[TopPlayer] Fallback extraction found ${this.paragraphs.length} paragraphs with ${wordCount} words`);
+      } else {
+        console.error('[TopPlayer] Fallback extraction failed to find paragraphs');
+      }
+    } catch (error) {
+      console.error('[TopPlayer] Error in fallback text extraction:', error);
+    }
   }
   
   private isNewsSite(hostname: string): boolean {
@@ -327,6 +583,44 @@ export class TopPlayer {
   
   // We now handle scrolling within the SettingsDropdown component
   
+  // Audio player event handlers
+  private handlePlaybackStart(): void {
+    console.log('[TopPlayer] Playback started');
+    this.isPlaying = true;
+    this.setState('speaking');
+  }
+  
+  private handlePlaybackEnd(): void {
+    console.log('[TopPlayer] Playback ended');
+    this.isPlaying = false;
+    this.setState('play');
+    this.pauseProgressAnimation();
+  }
+  
+  private handlePlaybackError(error: string): void {
+    console.error('[TopPlayer] Playback error:', error);
+    this.isPlaying = false;
+    this.setState('play');
+    this.pauseProgressAnimation();
+    
+    // Could show an error notification here
+  }
+  
+  private updateTimeDisplay(currentTime: number, duration: number): void {
+    if (!duration || isNaN(duration)) return;
+    
+    // Calculate playback progress percentage
+    const progressPercentage = (currentTime / duration) * 100;
+    
+    // Update progress bar
+    if (this.playerElement) {
+      const progressBar = this.playerElement.querySelector('#top-player-progress') as HTMLElement;
+      if (progressBar) {
+        progressBar.style.width = `${progressPercentage}%`;
+      }
+    }
+  }
+  
   // Track current state
   private state: 'play' | 'loading' | 'speaking' = 'play';
   
@@ -361,55 +655,137 @@ export class TopPlayer {
 
   private togglePlayPause(): void {
     if (this.state === 'speaking') {
-      this.setState('play');
-      this.pauseProgressAnimation();
+      // Stop playback
+      this.stopPlayback();
     } else if (this.state === 'play') {
-      // First go to loading state
-      this.setState('loading');
-      
-      // Simulate loading delay
-      setTimeout(() => {
-        // Only proceed if still in loading state
-        if (this.state === 'loading') {
-          this.setState('speaking');
-          this.startProgressAnimation();
-        }
-      }, 1000);
+      // Start playback
+      this.startPlayback();
     }
     // Do nothing if already in loading state
   }
   
+  // Start playback of the current paragraph and set up to continue to the next
+  private async startPlayback(): void {
+    console.log(`[TopPlayer] startPlayback called, paragraphs length: ${this.paragraphs.length}`);
+    
+    // Check if we have paragraphs
+    if (this.paragraphs.length === 0) {
+      console.warn('[TopPlayer] No paragraphs available for playback');
+      // Try re-extracting text content
+      this.extractPageText();
+      
+      // Check again after re-extraction
+      if (this.paragraphs.length === 0) {
+        console.error('[TopPlayer] Still no paragraphs after re-extraction, cannot proceed');
+        return;
+      } else {
+        console.log(`[TopPlayer] Successfully extracted ${this.paragraphs.length} paragraphs after retry`);
+      }
+    }
+    
+    // Set loading state
+    this.setState('loading');
+    
+    try {
+      // Get the selected voice from storage (or use default if not found)
+      const voiceId = await this.getSelectedVoice();
+      const modelId = this.defaultModelId;
+      
+      // Get current paragraph text
+      const currentText = this.paragraphs[this.currentParagraphIndex];
+      
+      console.log(`[TopPlayer] Starting playback of paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}:`, { 
+        textPreview: currentText.substring(0, 50) + '...',
+        textLength: currentText.length, 
+        voiceId,
+        modelId 
+      });
+      
+      // Set up callback for playback end to move to next paragraph
+      this.audioPlayer.setCallbacks({
+        onPlaybackStart: () => this.handlePlaybackStart(),
+        onPlaybackEnd: () => this.handleParagraphEnd(),
+        onPlaybackError: (error) => this.handlePlaybackError(error),
+        onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+      });
+      
+      // Start playback with the audioPlayer
+      await this.audioPlayer.playText(currentText, voiceId, modelId);
+    } catch (error) {
+      console.error('[TopPlayer] Error starting playback:', error);
+      this.handlePlaybackError(`Failed to start playback: ${error}`);
+    }
+  }
+  
+  // Handle end of paragraph playback
+  private handleParagraphEnd(): void {
+    console.log('[TopPlayer] Paragraph playback ended');
+    
+    // Move to next paragraph
+    this.currentParagraphIndex++;
+    
+    // If we've reached the end of all paragraphs, reset to beginning
+    if (this.currentParagraphIndex >= this.paragraphs.length) {
+      this.currentParagraphIndex = 0;
+      this.isPlaying = false;
+      this.setState('play');
+      this.pauseProgressAnimation();
+      console.log('[TopPlayer] Reached end of all paragraphs, stopping playback');
+      return;
+    }
+    
+    // Continue with next paragraph
+    console.log(`[TopPlayer] Moving to paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}`);
+    this.startPlayback();
+  }
+  
+  // Stop playback
+  private stopPlayback(): void {
+    // Stop the audio player
+    this.audioPlayer.stopPlayback();
+    
+    // Reset paragraph index to beginning
+    this.currentParagraphIndex = 0;
+    
+    // Update state
+    this.isPlaying = false;
+    this.setState('play');
+  }
+  
+  // Get the user's selected voice from Chrome storage
+  private async getSelectedVoice(): Promise<string> {
+    try {
+      // Get voice from Chrome storage
+      return new Promise<string>((resolve) => {
+        chrome.storage.local.get(['selectedVoiceId'], (result) => {
+          if (result && result.selectedVoiceId) {
+            console.log('[TopPlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
+            resolve(result.selectedVoiceId);
+          } else {
+            console.log('[TopPlayer] No voice ID in storage, using default:', this.defaultVoiceId);
+            resolve(this.defaultVoiceId);
+          }
+        });
+      });
+    } catch (error) {
+      console.error('[TopPlayer] Error getting selected voice:', error);
+      return this.defaultVoiceId;
+    }
+  }
+  
   private startProgressAnimation(): void {
-    // This would typically be handled by the actual audio player
-    // For this demo, we'll just simulate progress
+    // Initialize progress bar
     const progressBar = this.playerElement?.querySelector('#top-player-progress') as HTMLElement;
     if (progressBar) {
       // Reset to 0
       progressBar.style.width = '0%';
       
-      // Animate to 100% over 12 minutes (720000ms)
-      // For demo purposes, let's speed this up significantly
-      let progress = 0;
-      const interval = setInterval(() => {
-        if (this.state !== 'speaking') {
-          clearInterval(interval);
-          return;
-        }
-        
-        progress += 0.5;
-        if (progress >= 100) {
-          clearInterval(interval);
-          this.setState('play'); // Auto-pause when complete
-        } else {
-          progressBar.style.width = `${progress}%`;
-        }
-      }, 500); // Update every 500ms
+      // The progress will be updated by updateTimeDisplay during playback
     }
   }
   
   private pauseProgressAnimation(): void {
-    // In a real implementation, this would pause the actual animation
-    // For this demo, the animation is paused when the interval is cleared in startProgressAnimation
+    // Nothing to do here - progress updates stop when audio stops
   }
   
   public toggle(): void {
@@ -466,6 +842,9 @@ export class TopPlayer {
   
   public remove(): void {
     if (!this.playerElement) return;
+    
+    // Stop any active playback
+    this.stopPlayback();
     
     // Close settings dropdown if open
     this.closeSettingsDropdown();

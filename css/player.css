@@ -10,19 +10,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  /* Enhanced shadow effect with multiple layers */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(255, 255, 255, 0.05),
+              0 8px 25px rgba(0, 0, 0, 0.6),
+              0 2px 5px rgba(0, 0, 0, 0.5);
   z-index: 9998;
   border: 1px solid #2a2b31;
   max-height: 80vh;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: right 0.3s ease-in-out; /* Smooth transition for position changes */
+  transition: right 0.3s ease-in-out, box-shadow 0.3s ease; /* Smooth transition for position and shadow */
   width: 60px; /* Set a fixed width to make it a bit wider */
 }
 
 /* Position when next to panel */
 #extension-side-player.next-to-panel {
   right: 370px; /* Positioned to left of panel */
+  /* Slightly different shadow when next to panel */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(255, 255, 255, 0.05),
+              -8px 0 25px rgba(0, 0, 0, 0.5),
+              0 2px 5px rgba(0, 0, 0, 0.5);
 }
 
 .player-button {
@@ -162,7 +171,19 @@
   #extension-side-player {
     background-color: #fff;
     border: 1px solid #ddd;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    /* Softer shadow for light theme */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15),
+                0 0 0 2px rgba(0, 0, 0, 0.02),
+                0 8px 25px rgba(0, 0, 0, 0.2),
+                0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Light theme next to panel */
+  #extension-side-player.next-to-panel {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15),
+                0 0 0 2px rgba(0, 0, 0, 0.02),
+                -8px 0 25px rgba(0, 0, 0, 0.2),
+                0 2px 5px rgba(0, 0, 0, 0.1);
   }
   
   .player-button {

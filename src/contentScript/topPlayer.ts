@@ -39,6 +39,18 @@ export class TopPlayer {
     
     // Extract page text for the "Listen to This Page" feature
     this.extractPageText();
+    
+    // Set up listener for voice selection changes
+    this.setupVoiceSelectionListener();
+  }
+  
+  // Listen for voice selection changes
+  private setupVoiceSelectionListener(): void {
+    document.addEventListener('voice-selected', (event: any) => {
+      const { voiceId } = event.detail;
+      console.log('[TopPlayer] Voice selection changed to:', voiceId);
+      this.defaultVoiceId = voiceId;
+    });
   }
   
   // All paragraphs on the page
@@ -947,11 +959,21 @@ export class TopPlayer {
   // Get the user's selected voice from Chrome storage
   private async getSelectedVoice(): Promise<string> {
     try {
-      // Get voice from Chrome storage
+      // First check if we already have a voice ID from a voice-selected event
+      // This ensures we always use the most recently selected voice
+      if (this.defaultVoiceId !== '21m00Tcm4TlvDq8ikWAM') {
+        // Log that we're using the voice ID from recent selection
+        console.log('[TopPlayer] Using voice ID from most recent selection:', this.defaultVoiceId);
+        return this.defaultVoiceId;
+      }
+      
+      // Get voice from Chrome storage as a backup
       return new Promise<string>((resolve) => {
         chrome.storage.local.get(['selectedVoiceId'], (result) => {
           if (result && result.selectedVoiceId) {
             console.log('[TopPlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
+            // Update our cached voice ID for future use
+            this.defaultVoiceId = result.selectedVoiceId;
             resolve(result.selectedVoiceId);
           } else {
             console.log('[TopPlayer] No voice ID in storage, using default:', this.defaultVoiceId);

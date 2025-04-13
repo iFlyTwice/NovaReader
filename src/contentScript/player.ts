@@ -40,8 +40,8 @@ export class SidePlayer {
       // Add active class
       this.playButton.classList.add('active');
       
-      // Change icon to stop
-      this.playButton.innerHTML = ICONS.stop;
+      // Change icon to pause
+      this.playButton.innerHTML = ICONS.pause;
     }
     
     // Dispatch event to update selection button state

@@ -97,7 +97,7 @@ export class SelectionButton {
     const requiredAssets = [
       "assets/play.svg",
       "assets/spinner.svg",
-      "assets/stop.svg"
+      "assets/pause.svg"
     ];
     
     requiredAssets.forEach(asset => {
@@ -310,7 +310,7 @@ export class SelectionButton {
           }, 8000); // 8 seconds timeout - faster feedback
           break;
         case 'speaking':
-          this.buttonElement.src = chrome.runtime.getURL("assets/stop.svg");
+          this.buttonElement.src = chrome.runtime.getURL("assets/pause.svg");
           break;
       }
     } catch (error) {

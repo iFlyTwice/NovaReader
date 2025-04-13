@@ -58,6 +58,7 @@ export default defineManifest({
         'fonts/Heiback.otf',
         'assets/play.svg',
         'assets/stop.svg',
+        'assets/pause.svg',
         'assets/spinner.svg'
       ],
       matches: ['<all_urls>'],

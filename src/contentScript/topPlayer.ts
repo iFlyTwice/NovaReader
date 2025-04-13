@@ -215,13 +215,22 @@ export class TopPlayer {
       // Update the duration display
       this.duration = `${readingTimeMinutes} min`;
       
+      // Update UI if player is already created
+      if (this.playerElement) {
+        const durationElement = this.playerElement.querySelector('.top-player-duration');
+        if (durationElement) {
+          durationElement.textContent = `${readingTimeMinutes} min`;
+        }
+      }
+      
       console.log(`[TopPlayer] Extracted ${this.paragraphs.length} paragraphs with ${wordCount} words, estimated reading time: ${readingTimeMinutes} minutes`);
       
       // Debug output for first few paragraphs
       if (this.paragraphs.length > 0) {
         console.log('[TopPlayer] First paragraph:', this.paragraphs[0].substring(0, 100) + '...');
       } else {
-        console.error('[TopPlayer] No paragraphs were extracted');
+        // Only log as debug, not error - we'll try again later
+        console.debug('[TopPlayer] No paragraphs extracted in initial attempt');
       }
     } catch (error) {
       console.error('[TopPlayer] Error extracting page text:', error);
@@ -229,6 +238,15 @@ export class TopPlayer {
   }
   
   private getPlayerHTML(): string {
+    // Calculate initial reading time if we have paragraphs
+    if (this.paragraphs.length === 0) {
+      // Initial estimate until text is extracted
+      this.duration = "1 min";
+      
+      // Start text extraction here to get a more accurate time as soon as possible
+      setTimeout(() => this.extractPageText(), 100);
+    }
+    
     // Use the same settings icon as the side player
     return `
       <div class="top-player-content" data-nova-reader="top-player-content">
@@ -301,7 +319,7 @@ export class TopPlayer {
       
       // If no paragraphs were found, try again with a different approach
       if (this.paragraphs.length === 0) {
-        console.log('[TopPlayer] No paragraphs found on first attempt, trying fallback method');
+        console.debug('[TopPlayer] Using fallback extraction method');
         // Use a simpler but more aggressive extraction method
         this.fallbackTextExtraction();
       }
@@ -310,7 +328,7 @@ export class TopPlayer {
   
   // Fallback method for text extraction that's more aggressive
   private fallbackTextExtraction(): void {
-    console.log('[TopPlayer] Using fallback text extraction method');
+    console.debug('[TopPlayer] Starting fallback extraction');
     
     try {
       // Get all visible text on the page
@@ -337,9 +355,17 @@ export class TopPlayer {
         const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
         this.duration = `${readingTimeMinutes} min`;
         
-        console.log(`[TopPlayer] Fallback extraction found ${this.paragraphs.length} paragraphs with ${wordCount} words`);
+        // Update UI if player is already created
+        if (this.playerElement) {
+          const durationElement = this.playerElement.querySelector('.top-player-duration');
+          if (durationElement) {
+            durationElement.textContent = `${readingTimeMinutes} min`;
+          }
+        }
+        
+        console.log(`📖 [TopPlayer] Found ${this.paragraphs.length} paragraphs with ${wordCount} words (${readingTimeMinutes} min)`);
       } else {
-        console.error('[TopPlayer] Fallback extraction failed to find paragraphs');
+        console.debug('[TopPlayer] Still waiting for content to load');
       }
     } catch (error) {
       console.error('[TopPlayer] Error in fallback text extraction:', error);

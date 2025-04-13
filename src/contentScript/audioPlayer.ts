@@ -27,6 +27,7 @@ export class AudioStreamPlayer {
   // Callbacks for state updates
   private onPlaybackStart: () => void = () => {};
   private onPlaybackEnd: () => void = () => {};
+  private onPlaybackPause: () => void = () => {}; // New callback for pause
   private onPlaybackError: (error: string) => void = () => {};
   private onTimeUpdate: (currentTime: number, duration: number) => void = () => {};
 
@@ -86,11 +87,13 @@ export class AudioStreamPlayer {
   public setCallbacks(callbacks: {
     onPlaybackStart?: () => void,
     onPlaybackEnd?: () => void,
+    onPlaybackPause?: () => void,
     onPlaybackError?: (error: string) => void,
     onTimeUpdate?: (currentTime: number, duration: number) => void
   }): void {
     if (callbacks.onPlaybackStart) this.onPlaybackStart = callbacks.onPlaybackStart;
     if (callbacks.onPlaybackEnd) this.onPlaybackEnd = callbacks.onPlaybackEnd;
+    if (callbacks.onPlaybackPause) this.onPlaybackPause = callbacks.onPlaybackPause;
     if (callbacks.onPlaybackError) this.onPlaybackError = callbacks.onPlaybackError;
     if (callbacks.onTimeUpdate) this.onTimeUpdate = callbacks.onTimeUpdate;
   }
@@ -227,7 +230,38 @@ export class AudioStreamPlayer {
     // Handle audio element errors
     this.audioElement.addEventListener('error', (e) => {
       console.error('[AudioPlayer] Audio element error:', e);
-      this.onPlaybackError(`Audio playback error: ${this.audioElement.error?.message || 'Unknown error'}`);
+      
+      // Get detailed error information
+      let errorMessage = 'Unknown error';
+      if (this.audioElement.error) {
+        errorMessage = this.audioElement.error.message || 'Media error';
+        
+        // Add more details based on error code
+        if (this.audioElement.error.code) {
+          switch (this.audioElement.error.code) {
+            case MediaError.MEDIA_ERR_ABORTED:
+              errorMessage = 'Playback aborted by the user';
+              break;
+            case MediaError.MEDIA_ERR_NETWORK:
+              errorMessage = 'Network error during playback';
+              break;
+            case MediaError.MEDIA_ERR_DECODE:
+              errorMessage = 'Media decoding error';
+              break;
+            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+              errorMessage = 'Media format not supported';
+              break;
+          }
+        }
+      }
+      
+      // Check if source is empty
+      if (!this.audioElement.src || this.audioElement.src === '') {
+        errorMessage = 'Empty src attribute';
+        console.error('[AudioPlayer] Audio element has empty src attribute');
+      }
+      
+      this.onPlaybackError(`Audio playback error: ${errorMessage}`);
     });
     
     // Log buffer updates for debugging
@@ -541,14 +575,43 @@ export class AudioStreamPlayer {
       // Reset MediaSource if needed
       this.resetMediaSource();
       
-      // Set up AudioElement with MediaSource
-      this.audioElement.src = URL.createObjectURL(this.mediaSource);
+      // Create a new audio element to ensure clean state
+      this.audioElement = new Audio();
+      this.setupAudioElementEvents();
+      
+      // First create the object URL and assign it to the audio element
+      const sourceUrl = URL.createObjectURL(this.mediaSource);
+      console.log('[AudioPlayer] Created MediaSource URL:', sourceUrl);
+      this.audioElement.src = sourceUrl;
       
       // Start streaming setup timeout - only to detect if streaming fails to start at all
       this.startStreamingTimeout();
       
-      // Start playback - the mediaSource 'sourceopen' event will trigger fetchAndProcessStream
+      // Check if MediaSource is ready
+      const waitForMediaSourceOpen = new Promise<void>((resolve, reject) => {
+        // Only wait if not already open
+        if (this.mediaSource.readyState !== 'open') {
+          console.log('[AudioPlayer] Waiting for MediaSource to open...');
+          const timeout = setTimeout(() => {
+            reject(new Error('MediaSource open timeout'));
+          }, 5000);
+          
+          this.mediaSource.addEventListener('sourceopen', () => {
+            clearTimeout(timeout);
+            console.log('[AudioPlayer] MediaSource opened');
+            resolve();
+          }, { once: true });
+        } else {
+          console.log('[AudioPlayer] MediaSource already open');
+          resolve();
+        }
+      });
+      
       try {
+        // Wait for MediaSource to be ready
+        await waitForMediaSourceOpen;
+        
+        // Now try to start playback
         await this.audioElement.play();
         console.log('[AudioPlayer] Audio element playback started');
         this.onPlaybackStart();
@@ -602,7 +665,51 @@ export class AudioStreamPlayer {
   }
 
   /**
-   * Stop playback
+   * Pause playback without clearing the audio buffer
+   * This allows for resuming from the paused position
+   */
+  public pausePlayback(): void {
+    console.log('🔊 [Audio] Pausing playback');
+    
+    // Just pause the audio element without clearing anything
+    if (this.audioElement) {
+      this.audioElement.pause();
+      console.log('🔊 [Audio] Paused successfully');
+    } else {
+      console.warn('🔊 [Audio] ⚠️ No audio element to pause');
+    }
+    
+    // Use dedicated pause callback instead of the end callback
+    // This allows us to update UI without resetting playback state
+    this.onPlaybackPause();
+  }
+
+  /**
+   * Resume playback from the current position
+   */
+  public resumePlayback(): Promise<void> {
+    return new Promise<void>(async (resolve, reject) => {
+      try {
+        console.log('[AudioPlayer] Resuming playback');
+        
+        if (this.audioElement) {
+          // Just play the audio element from its current position
+          await this.audioElement.play();
+          this.onPlaybackStart();
+          resolve();
+        } else {
+          throw new Error('Audio element not available for resuming');
+        }
+      } catch (error) {
+        console.error('[AudioPlayer] Error resuming playback:', error);
+        this.onPlaybackError(`Failed to resume playback: ${error}`);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Stop playback completely
    */
   public stopPlayback(): void {
     // Clear any streaming timeout

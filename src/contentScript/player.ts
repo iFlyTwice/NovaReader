@@ -28,8 +28,39 @@ export class SidePlayer {
     this.audioPlayer.setCallbacks({
       onPlaybackStart: () => this.handlePlaybackStart(),
       onPlaybackEnd: () => this.handlePlaybackEnd(),
+      onPlaybackPause: () => this.handlePlaybackPause(),
       onPlaybackError: (error) => this.handlePlaybackError(error),
       onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
+    });
+    
+    // Immediately set up the selection playback listener
+    // to ensure we don't miss any events
+    this.setupSelectionPlaybackListener();
+    
+    // Set up listener to ensure player is visible before playback
+    this.setupEnsurePlayerVisibleListener();
+    
+    console.log('📱 [Player] Initialized and ready');
+  }
+  
+  // New method to ensure player is visible before playback
+  private setupEnsurePlayerVisibleListener(): void {
+    document.addEventListener('ensure-player-visible', (event: any) => {
+      const { text } = event.detail;
+      console.log('📱 [Player] Ensuring visibility');
+      
+      // If player isn't visible, create it
+      if (!document.getElementById(this.playerId)) {
+        this.create();
+        console.log('📱 [Player] Created new player instance');
+      }
+      
+      // Store the text so it can be played
+      if (text) {
+        this.currentText = text;
+        console.log('📱 [Player] Text stored: ', 
+                    text.length > 20 ? `${text.substring(0, 20)}...` : text);
+      }
     });
   }
   
@@ -50,6 +81,7 @@ export class SidePlayer {
   
   private handlePlaybackEnd(): void {
     this.isPlaying = false;
+    this.isPaused = false;
     if (this.playButton) {
       // Remove active class
       this.playButton.classList.remove('active');
@@ -60,6 +92,25 @@ export class SidePlayer {
     
     // Dispatch event to update selection button state
     this.dispatchSelectionButtonStateEvent('play');
+  }
+  
+  // New method specifically for pause events
+  private handlePlaybackPause(): void {
+    this.isPlaying = false;
+    this.isPaused = true;
+    
+    if (this.playButton) {
+      // Remove active class
+      this.playButton.classList.remove('active');
+      
+      // Change icon back to play
+      this.playButton.innerHTML = ICONS.play;
+    }
+    
+    // Dispatch event to update selection button state
+    this.dispatchSelectionButtonStateEvent('play');
+    
+    console.log('📱 [Player] Paused state active');
   }
   
   private handlePlaybackError(error: string): void {
@@ -73,13 +124,13 @@ export class SidePlayer {
       const minutes = Math.floor(currentTime / 60);
       const seconds = Math.floor(currentTime % 60);
       
-      // If duration is known, show time as current/total
-      if (duration && !isNaN(duration)) {
+      // If duration is known, finite, and not NaN, show time as current/total
+      if (duration && isFinite(duration) && !isNaN(duration)) {
         const totalMinutes = Math.floor(duration / 60);
         const totalSeconds = Math.floor(duration % 60);
         this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}/${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
       } else {
-        // Otherwise just show current time
+        // Otherwise just show current time without the infinity symbol
         this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
       }
     }
@@ -108,17 +159,40 @@ export class SidePlayer {
     
     // Play button
     const playButton = this.createButton('play', 'Play/Pause', () => {
+      console.log('[SidePlayer] Play button clicked, isPlaying:', this.isPlaying, 'isPaused:', this.isPaused);
+      
       if (this.isPlaying) {
-        this.stopPlayback();
+        // If currently playing, pause instead of stop
+        console.log('[SidePlayer] Currently playing, will pause');
+        this.pausePlayback();
+        
+        // Notify the selection button about the pause
+        this.dispatchSelectionButtonStateEvent('play');
+        
+        // Also dispatch a pause event that the selection button can pick up
+        const event = new CustomEvent('selection-playback', {
+          detail: {
+            action: 'pause',
+            text: this.currentText
+          }
+        });
+        document.dispatchEvent(event);
+      } else if (this.isPaused && this.currentText) {
+        // If paused with text, resume
+        console.log('[SidePlayer] Currently paused with text, will resume');
+        this.resumePlayback();
       } else if (this.currentText) {
+        // If not playing or paused but have text, start playing
+        console.log('[SidePlayer] Not playing but have text, will start');
         this.startPlayback(this.currentText);
       } else {
         // Try to get selected text if no current text
         const selectedText = window.getSelection()?.toString().trim();
         if (selectedText) {
+          console.log('[SidePlayer] No stored text, using selection');
           this.startPlayback(selectedText);
         } else {
-          console.log('No text selected or stored');
+          console.log('[SidePlayer] No text selected or stored');
         }
       }
     });
@@ -301,16 +375,106 @@ export class SidePlayer {
     document.dispatchEvent(event);
   }
   
+  // Track the currently selected text for pause/resume functionality
+  private selectedTextForPause: string = '';
+  private isPaused: boolean = false;
+
   // Method to handle selection button events
   public setupSelectionPlaybackListener(): void {
-    document.addEventListener('selection-playback', (event: any) => {
-      const { action, text } = event.detail;
-      
-      if (action === 'play' && text) {
+    // Remove any existing listener first to prevent duplicates
+    document.removeEventListener('selection-playback', this.handleSelectionPlaybackEvent);
+    
+    // Add the event listener
+    document.addEventListener('selection-playback', this.handleSelectionPlaybackEvent);
+    
+    console.log('[SidePlayer] Selection playback listener set up');
+  }
+  
+  // Separate method to handle selection playback events to avoid duplicate binding
+  private handleSelectionPlaybackEvent = (event: any) => {
+    const { action, text } = event.detail;
+    
+    console.log(`📱 [Player] Event: ${action}${text ? ` (${text.length} chars)` : ''}`);
+    
+    // Ensure player is visible
+    if (!document.getElementById(this.playerId)) {
+      console.log('📱 [Player] Creating instance');
+      this.create();
+    }
+    
+    if (action === 'play' && text) {
+      // If we're in a paused state with the same text, resume playback
+      if (this.isPaused && this.currentText === text) {
+        console.log('📱 [Player] Resuming paused content');
+        this.resumePlayback();
+      } else {
+        // Otherwise start new playback
+        console.log('📱 [Player] Starting new content');
         this.startPlayback(text);
-      } else if (action === 'stop') {
-        this.stopPlayback();
       }
-    });
+    } else if (action === 'pause') {
+      // Handle explicit pause action from selection button
+      console.log('📱 [Player] Pausing from selection button');
+      this.pausePlayback();
+    } else if (action === 'stop') {
+      // Just pause instead of stopping completely
+      console.log('📱 [Player] Stopping playback');
+      this.pausePlayback();
+    }
+  }
+  
+  /**
+   * Pause playback without clearing buffers
+   */
+  public pausePlayback(): void {
+    console.log('📱 [Player] Pausing playback');
+    
+    // We don't set isPaused here because the audioPlayer will call 
+    // handlePlaybackPause() via the callback, which sets isPaused=true
+    
+    // Now pause the audio - this will trigger the onPlaybackPause callback
+    // which will update the UI and set the isPaused flag
+    this.audioPlayer.pausePlayback();
+    
+    console.log('📱 [Player] Text:', 
+                this.currentText ? `${this.currentText.substring(0, 20)}...` : 'none');
+  }
+  
+  /**
+   * Resume playback from where it was paused
+   */
+  public async resumePlayback(): Promise<void> {
+    console.log('📱 [Player] Resuming playback');
+    
+    try {
+      // Update UI to show loading state
+      if (this.playButton) {
+        this.playButton.classList.add('active');
+        // Could optionally show a loading spinner here
+      }
+      
+      // Update selection button to loading state
+      this.dispatchSelectionButtonStateEvent('loading');
+      
+      // Resume playback
+      await this.audioPlayer.resumePlayback();
+      
+      // Update UI to reflect playing state
+      if (this.playButton) {
+        this.playButton.innerHTML = ICONS.pause;
+        this.playButton.classList.add('active');
+      }
+      
+      // Update the selection button state to speaking
+      this.dispatchSelectionButtonStateEvent('speaking');
+      
+      this.isPaused = false;
+      this.isPlaying = true;
+    } catch (error) {
+      console.error('📱 [Player] ⚠️ Resume error:', error);
+      this.handlePlaybackError(`Failed to resume playback: ${error}`);
+      // If resuming fails, reset the paused state
+      this.isPaused = false;
+    }
   }
 }

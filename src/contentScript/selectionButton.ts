@@ -261,13 +261,22 @@ export class SelectionButton {
     
     // Update button state
     if (this.currentState === 'speaking') {
-      // If already speaking, stop playback
+      // If already speaking, pause playback
+      console.log('👆 [Button] Pausing playback');
       this.setState('play');
-      // Dispatch event to stop playback
-      this.dispatchPlaybackEvent('stop');
+      // Dispatch event to pause playback, keeping the text so we can resume later
+      this.dispatchPlaybackEvent('pause', this.selectedText);
     } else {
-      // If not speaking, start playback
+      // If not speaking, start/resume playback
+      console.log('👆 [Button] Starting/resuming playback');
       this.setState('loading');
+      
+      // Ensure the player is visible before dispatching the play event
+      const playerVisibilityEvent = new CustomEvent('ensure-player-visible', {
+        detail: { text: this.selectedText }
+      });
+      document.dispatchEvent(playerVisibilityEvent);
+      
       // Dispatch event to start playback with selected text
       this.dispatchPlaybackEvent('play', this.selectedText);
     }
@@ -275,12 +284,12 @@ export class SelectionButton {
 
   // Method to update the button state from external sources
   public setState(state: 'play' | 'loading' | 'speaking'): void {
-    console.log('[SelectionButton] Setting button state to:', state);
+    console.log('👆 [Button] State:', state);
     
     this.currentState = state;
     
     if (!this.buttonElement) {
-      console.warn('[SelectionButton] Button element not found when setting state');
+      console.warn('👆 [Button] ⚠️ Element not found');
       return;
     }
     
@@ -364,7 +373,9 @@ export class SelectionButton {
     }, 3000);
   }
 
-  private dispatchPlaybackEvent(action: 'play' | 'stop', text?: string): void {
+  // Updated to support pause for preserving playback position
+  private dispatchPlaybackEvent(action: 'play' | 'stop' | 'pause', text?: string): void {
+    console.log(`👆 [Button] Event: ${action}`);
     const event = new CustomEvent('selection-playback', {
       detail: {
         action,

@@ -84,6 +84,24 @@
   fill: currentColor;
 }
 
+/* Button transition animations */
+.voice-button-transition,
+.settings-button-transition {
+  animation: rotateButtonIcon 0.3s ease-in-out;
+}
+
+@keyframes rotateButtonIcon {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(0.8);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
 .player-divider {
   width: 20px;
   height: 1px;

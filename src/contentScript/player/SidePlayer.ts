@@ -191,25 +191,84 @@ export class SidePlayer {
       addClickEffect(screenshotButton);
     });
     
-    // Select Voice button with microphone icon
+    // Select Voice button with microphone icon that transforms to X
     const selectVoiceButton = createButton(ICONS.microphone, 'Select Voice', () => {
       console.log('Select Voice clicked');
+      
+      // Check if voice selector is already open
+      const isVoiceSelectorOpen = !!document.getElementById('extension-voice-selector');
+      
+      // Toggle the icon based on the voice selector state
+      if (isVoiceSelectorOpen) {
+        // Voice selector is open and will be closed, change back to microphone
+        setTimeout(() => {
+          selectVoiceButton.innerHTML = ICONS.microphone;
+          selectVoiceButton.setAttribute('data-state', 'closed');
+        }, 150);
+      } else {
+        // Voice selector is closed and will be opened, change to X
+        selectVoiceButton.innerHTML = ICONS.close;
+        selectVoiceButton.setAttribute('data-state', 'open');
+      }
+      
+      // Add animation class
+      selectVoiceButton.classList.add('voice-button-transition');
+      
+      // Remove animation class after animation completes
+      setTimeout(() => {
+        selectVoiceButton.classList.remove('voice-button-transition');
+      }, 300);
+      
       // Dispatch event to toggle voice selector
       const event = new CustomEvent('toggle-voice-selector');
       document.dispatchEvent(event);
+      
       // Add visual feedback
       addClickEffect(selectVoiceButton);
     });
     
-    // Settings button (with red dot)
+    // Set initial state attribute
+    selectVoiceButton.setAttribute('data-state', 'closed');
+    
+    // Settings button that toggles between settings icon and X
     const settingsButton = createButton(ICONS.settings, 'Settings', () => {
+      // Check if panel is already open by its existence in the DOM
+      const isPanelOpen = !!document.getElementById('extension-side-panel');
+      
+      // Toggle the button icon between settings and X based on current state
+      if (isPanelOpen) {
+        // Panel is open and will be closed, revert to settings icon
+        setTimeout(() => {
+          settingsButton.innerHTML = ICONS.settings;
+          settingsButton.setAttribute('data-state', 'closed');
+        }, 150);
+      } else {
+        // Panel is closed and will be opened, change to X icon
+        settingsButton.innerHTML = ICONS.close;
+        settingsButton.setAttribute('data-state', 'open');
+      }
+      
+      // Add animation class
+      settingsButton.classList.add('settings-button-transition');
+      
+      // Remove animation class after animation completes
+      setTimeout(() => {
+        settingsButton.classList.remove('settings-button-transition');
+      }, 300);
+      
       // This will be handled by the panel module
       const event = new CustomEvent('toggle-panel');
       document.dispatchEvent(event);
+      
       // Add visual feedback
       addClickEffect(settingsButton);
     });
+    
+    // Add settings button class for the red dot indicator
     settingsButton.classList.add('settings-button');
+    
+    // Set initial state attribute
+    settingsButton.setAttribute('data-state', 'closed');
     
     // Divider
     const divider1 = document.createElement('div');

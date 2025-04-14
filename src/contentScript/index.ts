@@ -3,7 +3,7 @@ import { SidePanel } from './panel/SidePanel';
 import { VoiceSelector } from './voiceSelector';
 import { SelectionButton } from './selectionButton';
 import { TopPlayer } from './topPlayer/TopPlayer';
-import { addKeyboardShortcuts } from './utils';
+import { addKeyboardShortcuts, ICONS } from './utils';
 import { initializeTopPlayerPrefs } from './topPlayer/handlers/prefsHandler';
 
 // Import global CSS files to help Vite track dependencies
@@ -18,6 +18,8 @@ class ExtensionController {
   private topPlayer: TopPlayer;
   private isPanelOpen: boolean = false;
   private isVoiceSelectorOpen: boolean = false;
+  private documentClickListener: ((event: MouseEvent) => void) | null = null;
+  private panelClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
     console.info('ContentScript is running');
@@ -152,6 +154,13 @@ class ExtensionController {
     if (this.isVoiceSelectorOpen) {
       this.voiceSelector.remove();
       this.isVoiceSelectorOpen = false;
+      
+      // Remove document click listener if it exists
+      if (this.documentClickListener) {
+        document.removeEventListener('mousedown', this.documentClickListener);
+        this.documentClickListener = null;
+      }
+      
       return;
     }
     
@@ -160,6 +169,59 @@ class ExtensionController {
     this.isVoiceSelectorOpen = true;
     
     console.log(`Voice selector created. Panel open: ${this.isPanelOpen}`);
+    
+    // Clean up any existing listener first
+    if (this.documentClickListener) {
+      document.removeEventListener('mousedown', this.documentClickListener);
+      this.documentClickListener = null;
+    }
+    
+    // Set up a listener to ensure the button goes back to microphone icon if 
+    // the voice selector is closed by clicking outside or through other means
+    this.documentClickListener = (event: MouseEvent) => {
+      // Skip if voice selector is already closed
+      if (!this.isVoiceSelectorOpen) return;
+      
+      // Get the voice selector element
+      const voiceSelector = document.getElementById('extension-voice-selector');
+      
+      // If we have a selector and the click is outside of it
+      if (voiceSelector && !voiceSelector.contains(event.target as Node)) {
+        // Don't process if the click is on voice button itself (to avoid conflicts)
+        const selectVoiceButton = document.querySelector('[data-state="open"]');
+        if (selectVoiceButton && selectVoiceButton.contains(event.target as Node)) {
+          return;
+        }
+        
+        // Close the voice selector
+        this.voiceSelector.remove();
+        this.isVoiceSelectorOpen = false;
+        
+        // Get the select voice button and change its icon back to microphone
+        if (selectVoiceButton) {
+          // Add animation class
+          selectVoiceButton.classList.add('voice-button-transition');
+          
+          // Change icon after short delay to coordinate with animation
+          setTimeout(() => {
+            selectVoiceButton.innerHTML = ICONS.microphone;
+            selectVoiceButton.setAttribute('data-state', 'closed');
+          }, 150);
+          
+          // Remove animation class after animation completes
+          setTimeout(() => {
+            selectVoiceButton.classList.remove('voice-button-transition');
+          }, 300);
+        }
+        
+        // Remove the document click listener
+        document.removeEventListener('mousedown', this.documentClickListener!);
+        this.documentClickListener = null;
+      }
+    };
+    
+    // Add the click listener to close on outside clicks
+    document.addEventListener('mousedown', this.documentClickListener);
   }
 
   private setupKeyboardShortcuts(): void {
@@ -170,11 +232,43 @@ class ExtensionController {
   }
   
   private togglePanel(): void {
+    // Check current panel state before toggling
+    const wasPanelOpen = this.isPanelOpen;
+    
     // Toggle panel
     this.panel.toggle();
     
     // Update panel state
-    this.isPanelOpen = !this.isPanelOpen;
+    this.isPanelOpen = !wasPanelOpen;
+    
+    // Get settings button with open state attribute
+    const settingsButton = document.querySelector('[data-state="open"]');
+    
+    // If panel is closing and we have a settings button, update its icon
+    if (wasPanelOpen && settingsButton) {
+      // Add animation class
+      settingsButton.classList.add('settings-button-transition');
+      
+      // Change icon after short delay to coordinate with animation
+      setTimeout(() => {
+        settingsButton.innerHTML = ICONS.settings;
+        settingsButton.setAttribute('data-state', 'closed');
+      }, 150);
+      
+      // Remove animation class after animation completes
+      setTimeout(() => {
+        settingsButton.classList.remove('settings-button-transition');
+      }, 300);
+      
+      // Clean up panel click listener if it exists
+      if (this.panelClickListener) {
+        document.removeEventListener('mousedown', this.panelClickListener);
+        this.panelClickListener = null;
+      }
+    } else if (!wasPanelOpen) {
+      // Panel is opening, set up click outside listener
+      this.setupPanelOutsideClickListener();
+    }
     
     // Toggle the player's position by adding/removing the class
     const player = document.getElementById('extension-side-player');
@@ -202,6 +296,78 @@ class ExtensionController {
       }
       console.log(`Voice selector position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
     }
+  }
+  
+  private setupPanelOutsideClickListener(): void {
+    // Clean up any existing listener first
+    if (this.panelClickListener) {
+      document.removeEventListener('mousedown', this.panelClickListener);
+      this.panelClickListener = null;
+    }
+    
+    // Set up a listener to handle clicks outside the panel
+    this.panelClickListener = (event: MouseEvent) => {
+      // Skip if panel is already closed
+      if (!this.isPanelOpen) return;
+      
+      // Get the panel element
+      const panel = document.getElementById('extension-side-panel');
+      
+      // If we have a panel and the click is outside of it
+      if (panel && !panel.contains(event.target as Node)) {
+        // Don't process if the click is on settings button itself (to avoid conflicts)
+        const settingsButton = document.querySelector('[data-state="open"]');
+        if (settingsButton && settingsButton.contains(event.target as Node)) {
+          return;
+        }
+        
+        // Close the panel
+        this.panel.toggle();
+        this.isPanelOpen = false;
+        
+        // Update player position
+        const player = document.getElementById('extension-side-player');
+        if (player) {
+          setTimeout(() => {
+            player.classList.remove('next-to-panel');
+          }, 50);
+        }
+        
+        // Update voice selector position if open
+        const voiceSelector = document.getElementById('extension-voice-selector');
+        if (voiceSelector) {
+          setTimeout(() => {
+            voiceSelector.classList.remove('panel-open');
+          }, 50);
+        }
+        
+        // Get the settings button and change its icon back
+        if (settingsButton) {
+          // Add animation class
+          settingsButton.classList.add('settings-button-transition');
+          
+          // Change icon after short delay to coordinate with animation
+          setTimeout(() => {
+            settingsButton.innerHTML = ICONS.settings;
+            settingsButton.setAttribute('data-state', 'closed');
+          }, 150);
+          
+          // Remove animation class after animation completes
+          setTimeout(() => {
+            settingsButton.classList.remove('settings-button-transition');
+          }, 300);
+        }
+        
+        // Remove the document click listener
+        document.removeEventListener('mousedown', this.panelClickListener!);
+        this.panelClickListener = null;
+      }
+    };
+    
+    // Delay adding the listener until after the current click event has propagated
+    setTimeout(() => {
+      document.addEventListener('mousedown', this.panelClickListener!);
+    }, 100);
   }
   
   private togglePlayer(): void {

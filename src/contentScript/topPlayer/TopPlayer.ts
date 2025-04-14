@@ -7,7 +7,7 @@ import '../../../css/top-player.css';
 
 // Import Icons
 import { ICONS } from '../utils';
-import { SettingsDropdown, SettingsDropdownProps } from '../SettingsDropdown';
+import { SettingsDropdown, SettingsDropdownProps } from './components';
 import { AudioStreamPlayer } from '../audioPlayer';
 
 // Import utilities

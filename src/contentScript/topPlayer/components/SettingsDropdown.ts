@@ -1,5 +1,5 @@
 // Import Icons
-import { ICONS } from './utils';
+import { ICONS } from '../../utils';
 
 export interface SettingsDropdownProps {
   buttonElement: HTMLElement;

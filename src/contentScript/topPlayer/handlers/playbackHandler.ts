@@ -21,24 +21,36 @@ export function handlePlaybackError(topPlayer: any, error: string): void {
   topPlayer.setState('play');
   topPlayer.pauseProgressAnimation();
   
+  // Check if player is still in the DOM before showing notification
+  if (!document.getElementById(topPlayer.playerId)) {
+    console.log('[TopPlayer] Player removed from DOM, skipping error notification');
+    return;
+  }
+  
   // Check for common error types and display appropriate messages
   if (error.includes('quota') || error.includes('credits')) {
     // Show a quota error notification
-    topPlayer.showErrorNotification('ElevenLabs API quota exceeded. Please upgrade your ElevenLabs account or try a shorter text.');
+    showErrorNotification('ElevenLabs API quota exceeded. Please upgrade your ElevenLabs account or try a shorter text.');
   } else if (error.includes('Unauthorized')) {
     // Show an authentication error notification
-    topPlayer.showErrorNotification('API key error. Please check your ElevenLabs API key in the extension settings.');
+    showErrorNotification('API key error. Please check your ElevenLabs API key in the extension settings.');
   } else if (error.includes('timeout')) {
     // Show a timeout error notification
-    topPlayer.showErrorNotification('Playback timed out. Trying with a shorter text segment...');
+    showErrorNotification('Playback timed out. Trying with a shorter text segment...');
   } else {
     // Generic error
-    topPlayer.showErrorNotification('Playback error. Please try again with a shorter text or refresh the page.');
+    showErrorNotification('Playback error. Please try again with a shorter text or refresh the page.');
   }
 }
 
 export function updateTimeDisplay(topPlayer: any, currentTime: number, duration: number): void {
   if (!duration || isNaN(duration)) return;
+  
+  // Check if player is still in the DOM before updating
+  if (!topPlayer.playerElement || !document.getElementById(topPlayer.playerId)) {
+    console.log('[TopPlayer] Player removed from DOM, skipping time update');
+    return;
+  }
   
   // Calculate playback progress percentage
   const progressPercentage = (currentTime / duration) * 100;
@@ -53,6 +65,12 @@ export function updateTimeDisplay(topPlayer: any, currentTime: number, duration:
 }
 
 export function showErrorNotification(message: string): void {
+  // Check if notification already exists and remove it
+  const existingNotification = document.querySelector('.top-player-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+  
   // Create notification element
   const notification = document.createElement('div');
   notification.className = 'top-player-notification';

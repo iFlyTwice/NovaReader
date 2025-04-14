@@ -164,6 +164,9 @@ export class TopPlayer {
     player.id = this.playerId;
     player.className = 'top-player-container';
     
+    // Add shadow to the top player similar to the one in SidePanel
+    player.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 20px rgba(0, 0, 0, 0.2)';
+    
     // Set player HTML
     player.innerHTML = this.getPlayerHTML();
     

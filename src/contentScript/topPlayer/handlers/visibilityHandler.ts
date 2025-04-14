@@ -12,6 +12,10 @@ export function setupVisibilityListener(topPlayer: any): void {
       topPlayer.show();
     } else if (!visible) {
       console.log('📖 [TopPlayer] Triggering remove() from visibility event');
+      // First check and stop any active playback before removing the player
+      if (topPlayer.isPlaying) {
+        topPlayer.stopPlayback();
+      }
       topPlayer.remove(); // Use remove instead of hide to fully remove it from DOM
     }
   });
@@ -33,7 +37,10 @@ export function checkInitialVisibility(topPlayer: any): void {
         }
       }, 500);
     } else if (topPlayer.playerElement) {
-      // If player exists but should be hidden, remove it
+      // If player exists but should be hidden, ensure playback is stopped before removing
+      if (topPlayer.isPlaying) {
+        topPlayer.stopPlayback();
+      }
       console.log('📖 [TopPlayer] Removing player during initial visibility check');
       topPlayer.remove();
     }
@@ -50,6 +57,10 @@ export function checkInitialVisibility(topPlayer: any): void {
         console.log('📖 [TopPlayer] Creating player during delayed visibility check');
         topPlayer.show();
       } else if (!isVisible && topPlayer.playerElement) {
+        // Ensure playback is stopped before removing
+        if (topPlayer.isPlaying) {
+          topPlayer.stopPlayback();
+        }
         console.log('📖 [TopPlayer] Removing player during delayed visibility check');
         topPlayer.remove();
       }
@@ -73,6 +84,10 @@ export function toggleVisibility(topPlayer: any): void {
         topPlayer.show();
       } else {
         console.log('📖 [TopPlayer] Removing player after toggle');
+        // First check and stop any active playback before removing
+        if (topPlayer.isPlaying) {
+          topPlayer.stopPlayback();
+        }
         topPlayer.remove();
       }
     });

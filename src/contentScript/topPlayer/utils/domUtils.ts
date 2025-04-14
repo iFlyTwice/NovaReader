@@ -15,59 +15,163 @@ export function isNewsSite(hostname: string): boolean {
 }
 
 /**
- * Insert player for Coursera pages
+ * Insert player for Coursera pages with robust retry and DOM observation
  */
 export function insertForCoursera(player: HTMLElement): void {
-  console.log('[TopPlayer] Detected Coursera, using Coursera-specific insertion');
+  console.log('[TopPlayer] Detected Coursera, using enhanced Coursera-specific insertion');
   
-  try {
-    // The most reliable position is right after the reading-title div
-    // This is the exact position shown in your second screenshot
-    const readingTitle = document.querySelector('div.reading-title');
-    if (readingTitle && readingTitle.parentNode) {
-      // Insert after the reading title (before the content)
-      if (readingTitle.nextSibling) {
-        readingTitle.parentNode.insertBefore(player, readingTitle.nextSibling);
-      } else {
-        // If no next sibling, append after reading title
-        readingTitle.parentNode.appendChild(player);
+  // Maximum number of retries
+  const MAX_RETRIES = 5;
+  // Current retry count
+  let retryCount = 0;
+  // Initial retry delay in ms (will increase with backoff)
+  let retryDelay = 200;
+  // Flag to track if player has been inserted
+  let isInserted = false;
+  // Store observer reference for cleanup
+  let observer: MutationObserver | null = null;
+  
+  // Create a function that attempts to insert the player
+  const attemptInsertion = () => {
+    try {
+      if (isInserted) return true;
+      
+      // The most reliable position is right after the reading-title div
+      const readingTitle = document.querySelector('div.reading-title');
+      if (readingTitle && readingTitle.parentNode) {
+        // Insert after the reading title (before the content)
+        if (readingTitle.nextSibling) {
+          readingTitle.parentNode.insertBefore(player, readingTitle.nextSibling);
+        } else {
+          // If no next sibling, append after reading title
+          readingTitle.parentNode.appendChild(player);
+        }
+        console.log('[TopPlayer] Inserted player after reading title');
+        isInserted = true;
+        return true;
       }
-      console.log('[TopPlayer] Inserted player after reading title');
+      
+      // Try to find the course content container
+      const courseContent = document.querySelector('.rc-CML');
+      if (courseContent && courseContent.parentNode) {
+        // Insert before the course content
+        courseContent.parentNode.insertBefore(player, courseContent);
+        console.log('[TopPlayer] Inserted player before course content');
+        isInserted = true;
+        return true;
+      }
+      
+      // Look for the item-page-content or main content area
+      const contentArea = document.querySelector('.item-page-content') || 
+                         document.querySelector('.rc-DesktopLayout') ||
+                         document.querySelector('div[role="main"]') ||
+                         document.querySelector('main');
+      
+      if (contentArea) {
+        // Insert at the top of the content area
+        contentArea.insertBefore(player, contentArea.firstChild);
+        console.log('[TopPlayer] Inserted player at top of content area');
+        isInserted = true;
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.error('[TopPlayer] Error in Coursera insertion attempt:', err);
+      return false;
+    }
+  };
+  
+  // Function to retry with exponential backoff
+  const retryWithBackoff = () => {
+    // Check if we've reached the maximum number of retries
+    if (retryCount >= MAX_RETRIES) {
+      console.warn('[TopPlayer] Max retries reached, using fallback insertion');
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      if (!isInserted) {
+        insertDefault(player);
+        isInserted = true;
+      }
       return;
     }
     
-    // If no reading title found yet, target one of the other key elements
-    // These are backup options that shouldn't be needed due to our waiting approach
+    // Increment retry count
+    retryCount++;
     
-    // Try to find the course content container
-    const courseContent = document.querySelector('.rc-CML');
-    if (courseContent && courseContent.parentNode) {
-      // Insert before the course content
-      courseContent.parentNode.insertBefore(player, courseContent);
-      console.log('[TopPlayer] Inserted player before course content');
+    // Try to insert the player
+    if (attemptInsertion()) {
+      // Player inserted successfully, no need for further retries
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
       return;
     }
     
-    // Look for the item-page-content or main content area
-    const contentArea = document.querySelector('.item-page-content') || 
-                       document.querySelector('.rc-DesktopLayout') ||
-                       document.querySelector('div[role="main"]') ||
-                       document.querySelector('main');
+    // Schedule next retry with increased delay (exponential backoff)
+    console.log(`[TopPlayer] Insertion attempt ${retryCount} failed, retrying in ${retryDelay}ms`);
+    setTimeout(retryWithBackoff, retryDelay);
     
-    if (contentArea) {
-      // Insert at the top of the content area
-      contentArea.insertBefore(player, contentArea.firstChild);
-      console.log('[TopPlayer] Inserted player at top of content area');
+    // Increase delay for next retry (exponential backoff)
+    retryDelay *= 1.5;
+  };
+  
+  // Set up a MutationObserver to watch for DOM changes
+  observer = new MutationObserver((mutations) => {
+    // Don't attempt insertion if already successful
+    if (isInserted) {
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
       return;
     }
     
-    // If all specific approaches fail, use the default insertion
-    console.log('[TopPlayer] No suitable Coursera container found, using fallback');
-    insertDefault(player);
-  } catch (err) {
-    console.error('[TopPlayer] Error inserting for Coursera:', err);
-    // Fallback to default insertion if anything goes wrong
-    insertDefault(player);
+    // Some DOM changes occurred, try insertion again
+    console.log('[TopPlayer] DOM changed, attempting insertion');
+    
+    // Try insertion
+    if (attemptInsertion()) {
+      // If successful, disconnect the observer
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+    }
+  });
+  
+  // Start observing the document with the configured parameters
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true 
+  });
+  
+  // Try immediate insertion first
+  if (!attemptInsertion()) {
+    // If immediate insertion fails, start retry sequence
+    retryWithBackoff();
+    
+    // Set a timeout to use default insertion as final fallback
+    setTimeout(() => {
+      // If still not inserted after all retries and waiting for DOM changes
+      if (!isInserted) {
+        console.warn('[TopPlayer] Could not find suitable Coursera container after waiting, using fallback');
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+        insertDefault(player);
+      }
+    }, 5000); // 5 second total timeout
+  } else {
+    // If immediate insertion succeeded, disconnect the observer
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
   }
 }
 

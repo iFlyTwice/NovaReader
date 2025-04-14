@@ -72,6 +72,9 @@ export class TopPlayer {
   // Track current state
   public state: 'play' | 'loading' | 'speaking' = 'play';
   
+  // Track if DOM observation for player insertion is in progress
+  private insertionInProgress: boolean = false;
+  
   constructor() {
     // Initialize the audio player
     this.audioPlayer = new AudioStreamPlayer();
@@ -140,10 +143,21 @@ export class TopPlayer {
   }
   
   public create(): void {
-    // Check if player already exists
+    console.log('[TopPlayer] Creating top player');
+    
+    // Check if player already exists to avoid duplicates
     if (document.getElementById(this.playerId)) {
+      console.log('[TopPlayer] Player already exists, not creating duplicate');
       return;
     }
+    
+    // Check if insertion is already in progress
+    if (this.insertionInProgress) {
+      console.log('[TopPlayer] Insertion already in progress');
+      return;
+    }
+    
+    this.insertionInProgress = true;
     
     // Create player container
     const player = document.createElement('div');
@@ -156,14 +170,17 @@ export class TopPlayer {
     // Get the hostname to detect specific sites
     const hostname = window.location.hostname;
     
-    // Special handling for Coursera
+    // Special handling for Coursera (uses enhanced insertion with retry)
     if (hostname.includes('coursera.org')) {
+      console.log('[TopPlayer] Detected Coursera site, using robust insertion');
       insertForCoursera(player);
     } else if (isNewsSite(hostname)) {
       // Special handling for news sites
+      console.log('[TopPlayer] Detected news site');
       insertForNewsSite(player);
     } else {
       // Default approach: find a suitable H1 or content container
+      console.log('[TopPlayer] Using default insertion');
       insertDefault(player);
     }
     
@@ -184,6 +201,7 @@ export class TopPlayer {
     
     // Extract page text after a short delay to ensure the DOM is settled
     setTimeout(() => {
+      console.log('[TopPlayer] Extracting page text');
       extractPageText(this);
       
       // If no paragraphs were found, try again with a different approach
@@ -193,6 +211,27 @@ export class TopPlayer {
         fallbackTextExtraction(this);
       }
     }, 1000);
+    
+    // Double-check visibility after a delay to ensure consistency with settings
+    setTimeout(() => {
+      chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+        const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+        console.log(`[TopPlayer] Double-checking visibility: should be ${isVisible ? 'visible' : 'hidden'}`);
+        
+        if (!isVisible && this.playerElement) {
+          // If player shouldn't be visible but exists, remove it
+          console.log('[TopPlayer] Correcting visibility - removing player');
+          this.remove();
+        } else if (isVisible && !this.playerElement) {
+          // If player should be visible but doesn't exist, recreate it
+          console.log('[TopPlayer] Correcting visibility - showing player');
+          this.show();
+        }
+      });
+      
+      // Reset insertion flag
+      this.insertionInProgress = false;
+    }, 1500);
   }
   
   private setupEventHandlers(): void {

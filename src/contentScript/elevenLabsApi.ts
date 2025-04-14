@@ -193,7 +193,7 @@ export const streamTextToSpeech = async (text: string, voiceId: string, modelId:
       console.log('[ElevenLabsAPI] API key retrieved successfully');
     } catch (keyError) {
       console.error('[ElevenLabsAPI] API key error:', keyError);
-      throw new Error(`API key error: ${keyError.message}`);
+      throw new Error(`API key error: ${(keyError as any).message}`);
     }
 
     console.log(`[ElevenLabsAPI] Making request to ElevenLabs API - Voice ID: ${voiceId}, Model: ${modelId}`);

@@ -1,15 +1,39 @@
+/**
+ * Side Player class for the NovaReader extension
+ */
+
 // SVG Icons
-import { ICONS } from './utils';
+import { ICONS } from '../utils';
 // Import CSS to help Vite track dependencies
-import '../../css/player.css';
+import '../../../css/player.css';
 // Import audio player for streaming
-import { AudioStreamPlayer } from './audioPlayer';
+import { AudioStreamPlayer } from '../audioPlayer';
+
+// Import utility functions
+import { 
+  createButton, 
+  addClickEffect, 
+  dispatchSelectionButtonStateEvent,
+  getSelectedVoice
+} from './utils/playerEvents';
+
+// Import handlers
+import {
+  handlePlaybackStart,
+  handlePlaybackEnd,
+  handlePlaybackPause,
+  handlePlaybackError,
+  updateTimeDisplay
+} from './handlers/playbackHandlers';
 
 export class SidePlayer {
-  private playerId: string = 'extension-side-player';
+  // Make these public for the event handlers to access
+  public playerId: string = 'extension-side-player';
+  public currentText: string = '';
+  
   private isPlaying: boolean = false;
+  private isPaused: boolean = false;
   private playerElement: HTMLElement | null = null;
-  private currentText: string = '';
   private playButton: HTMLElement | null = null;
   private timeDisplay: HTMLElement | null = null;
   
@@ -67,73 +91,28 @@ export class SidePlayer {
   // Audio player event handlers
   private handlePlaybackStart(): void {
     this.isPlaying = true;
-    if (this.playButton) {
-      // Add active class
-      this.playButton.classList.add('active');
-      
-      // Change icon to pause
-      this.playButton.innerHTML = ICONS.pause;
-    }
-    
-    // Dispatch event to update selection button state
-    this.dispatchSelectionButtonStateEvent('speaking');
+    handlePlaybackStart(this.playButton);
   }
   
   private handlePlaybackEnd(): void {
     this.isPlaying = false;
     this.isPaused = false;
-    if (this.playButton) {
-      // Remove active class
-      this.playButton.classList.remove('active');
-      
-      // Change icon back to play
-      this.playButton.innerHTML = ICONS.play;
-    }
-    
-    // Dispatch event to update selection button state
-    this.dispatchSelectionButtonStateEvent('play');
+    handlePlaybackEnd(this.playButton);
   }
   
   // New method specifically for pause events
   private handlePlaybackPause(): void {
     this.isPlaying = false;
     this.isPaused = true;
-    
-    if (this.playButton) {
-      // Remove active class
-      this.playButton.classList.remove('active');
-      
-      // Change icon back to play
-      this.playButton.innerHTML = ICONS.play;
-    }
-    
-    // Dispatch event to update selection button state
-    this.dispatchSelectionButtonStateEvent('play');
-    
-    console.log('📱 [Player] Paused state active');
+    handlePlaybackPause(this.playButton);
   }
   
   private handlePlaybackError(error: string): void {
-    console.error('Playback error:', error);
-    // Notify user of the error?
-    this.handlePlaybackEnd(); // Reset state
+    handlePlaybackError(error, this.playButton);
   }
   
   private updateTimeDisplay(currentTime: number, duration: number): void {
-    if (this.timeDisplay) {
-      const minutes = Math.floor(currentTime / 60);
-      const seconds = Math.floor(currentTime % 60);
-      
-      // If duration is known, finite, and not NaN, show time as current/total
-      if (duration && isFinite(duration) && !isNaN(duration)) {
-        const totalMinutes = Math.floor(duration / 60);
-        const totalSeconds = Math.floor(duration % 60);
-        this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}/${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
-      } else {
-        // Otherwise just show current time without the infinity symbol
-        this.timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
-    }
+    updateTimeDisplay(this.timeDisplay, currentTime, duration);
   }
 
   public create(nextToPanel: boolean = false): void {
@@ -158,7 +137,7 @@ export class SidePlayer {
     this.timeDisplay = timeDisplay;
     
     // Play button
-    const playButton = this.createButton('play', 'Play/Pause', () => {
+    const playButton = createButton(ICONS.play, 'Play/Pause', () => {
       console.log('[SidePlayer] Play button clicked, isPlaying:', this.isPlaying, 'isPaused:', this.isPaused);
       
       if (this.isPlaying) {
@@ -167,7 +146,7 @@ export class SidePlayer {
         this.pausePlayback();
         
         // Notify the selection button about the pause
-        this.dispatchSelectionButtonStateEvent('play');
+        dispatchSelectionButtonStateEvent('play');
         
         // Also dispatch a pause event that the selection button can pick up
         const event = new CustomEvent('selection-playback', {
@@ -199,36 +178,36 @@ export class SidePlayer {
     this.playButton = playButton;
     
     // Thumbs down button (dislike)
-    const thumbsDownButton = this.createButton('thumbsDown', 'Dislike', () => {
+    const thumbsDownButton = createButton(ICONS.thumbsDown, 'Dislike', () => {
       console.log('Dislike clicked');
       // Add visual feedback
-      this.addClickEffect(thumbsDownButton);
+      addClickEffect(thumbsDownButton);
     });
     
     // Screenshot button
-    const screenshotButton = this.createButton('screenshot', 'Screenshot', () => {
+    const screenshotButton = createButton(ICONS.screenshot, 'Screenshot', () => {
       console.log('Screenshot clicked');
       // Add visual feedback
-      this.addClickEffect(screenshotButton);
+      addClickEffect(screenshotButton);
     });
     
     // Select Voice button with microphone icon
-    const selectVoiceButton = this.createButton('microphone', 'Select Voice', () => {
+    const selectVoiceButton = createButton(ICONS.microphone, 'Select Voice', () => {
       console.log('Select Voice clicked');
       // Dispatch event to toggle voice selector
       const event = new CustomEvent('toggle-voice-selector');
       document.dispatchEvent(event);
       // Add visual feedback
-      this.addClickEffect(selectVoiceButton);
+      addClickEffect(selectVoiceButton);
     });
     
     // Settings button (with red dot)
-    const settingsButton = this.createButton('settings', 'Settings', () => {
+    const settingsButton = createButton(ICONS.settings, 'Settings', () => {
       // This will be handled by the panel module
       const event = new CustomEvent('toggle-panel');
       document.dispatchEvent(event);
       // Add visual feedback
-      this.addClickEffect(settingsButton);
+      addClickEffect(settingsButton);
     });
     settingsButton.classList.add('settings-button');
     
@@ -237,10 +216,10 @@ export class SidePlayer {
     divider1.className = 'player-divider';
     
     // Close button
-    const closeButton = this.createButton('close', 'Close', () => {
+    const closeButton = createButton(ICONS.close, 'Close', () => {
       this.remove();
       // Add visual feedback
-      this.addClickEffect(closeButton);
+      addClickEffect(closeButton);
     });
     
     // Create a divider for after the play button
@@ -261,23 +240,6 @@ export class SidePlayer {
     // Add player to page
     document.body.appendChild(player);
     this.playerElement = player;
-  }
-
-  private createButton(iconName: keyof typeof ICONS, title: string, clickHandler: () => void): HTMLElement {
-    const button = document.createElement('div');
-    button.className = 'player-button';
-    button.innerHTML = ICONS[iconName];
-    button.title = title;
-    button.addEventListener('click', clickHandler);
-    return button;
-  }
-  
-  private addClickEffect(element: HTMLElement): void {
-    // Add a quick scale animation for feedback
-    element.style.transform = 'scale(0.9)';
-    setTimeout(() => {
-      element.style.transform = '';
-    }, 150);
   }
 
   public toggle(isPanelOpen: boolean = false): void {
@@ -318,7 +280,7 @@ export class SidePlayer {
     
     try {
       // First, get the selected voice from storage (or use default if not found)
-      const voiceId = await this.getSelectedVoice();
+      const voiceId = await getSelectedVoice(this.defaultVoiceId);
       const modelId = this.defaultModelId;
       
       console.log('[SidePlayer] Starting playback with:', { 
@@ -328,34 +290,13 @@ export class SidePlayer {
       });
       
       // Update selection button to loading state
-      this.dispatchSelectionButtonStateEvent('loading');
+      dispatchSelectionButtonStateEvent('loading');
       
       // Start playback with the audioPlayer
       await this.audioPlayer.playText(text, voiceId, modelId);
     } catch (error) {
       console.error('[SidePlayer] Error starting playback:', error);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
-    }
-  }
-  
-  // Get the user's selected voice from Chrome storage
-  private async getSelectedVoice(): Promise<string> {
-    try {
-      // Get voice from Chrome storage
-      return new Promise<string>((resolve) => {
-        chrome.storage.local.get(['selectedVoiceId'], (result) => {
-          if (result && result.selectedVoiceId) {
-            console.log('[SidePlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
-            resolve(result.selectedVoiceId);
-          } else {
-            console.log('[SidePlayer] No voice ID in storage, using default:', this.defaultVoiceId);
-            resolve(this.defaultVoiceId);
-          }
-        });
-      });
-    } catch (error) {
-      console.error('[SidePlayer] Error getting selected voice:', error);
-      return this.defaultVoiceId;
     }
   }
   
@@ -368,17 +309,6 @@ export class SidePlayer {
     this.audioPlayer.setPlaybackSpeed(speed);
   }
   
-  private dispatchSelectionButtonStateEvent(state: 'play' | 'loading' | 'speaking'): void {
-    const event = new CustomEvent('selection-button-state', {
-      detail: { state }
-    });
-    document.dispatchEvent(event);
-  }
-  
-  // Track the currently selected text for pause/resume functionality
-  private selectedTextForPause: string = '';
-  private isPaused: boolean = false;
-
   // Method to handle selection button events
   public setupSelectionPlaybackListener(): void {
     // Remove any existing listener first to prevent duplicates
@@ -391,7 +321,7 @@ export class SidePlayer {
   }
   
   // Separate method to handle selection playback events to avoid duplicate binding
-  private handleSelectionPlaybackEvent = (event: any) => {
+  public handleSelectionPlaybackEvent = (event: any) => {
     const { action, text } = event.detail;
     
     console.log(`📱 [Player] Event: ${action}${text ? ` (${text.length} chars)` : ''}`);
@@ -454,7 +384,7 @@ export class SidePlayer {
       }
       
       // Update selection button to loading state
-      this.dispatchSelectionButtonStateEvent('loading');
+      dispatchSelectionButtonStateEvent('loading');
       
       // Resume playback
       await this.audioPlayer.resumePlayback();
@@ -466,7 +396,7 @@ export class SidePlayer {
       }
       
       // Update the selection button state to speaking
-      this.dispatchSelectionButtonStateEvent('speaking');
+      dispatchSelectionButtonStateEvent('speaking');
       
       this.isPaused = false;
       this.isPlaying = true;

@@ -1,11 +1,14 @@
 // SVG Icons
-import { ICONS } from './utils';
-// Import CSS to help Vite track dependencies
-import '../../css/voiceSelector.css';
+import { ICONS } from '../utils';
 // Import ElevenLabs API
-import { fetchElevenLabsVoices, Voice } from './elevenLabsApi';
+import { fetchElevenLabsVoices, Voice } from '../elevenLabsApi';
 // Import voice IDs from config
-import { VOICE_IDS } from '../config';
+import { VOICE_IDS } from '../../config';
+// Import helper functions
+import { createVoiceOption } from './utils/voiceOptionCreator';
+import { filterVoices } from './utils/voiceFilters';
+import { playSample } from './handlers/voiceSampleHandler';
+import { loadCurrentVoice, updateCurrentVoiceDisplay } from './handlers/currentVoiceHandler';
 
 export class VoiceSelector {
   private selectorId: string = 'extension-voice-selector';
@@ -63,106 +66,26 @@ export class VoiceSelector {
     
     // Add voice options
     this.voices.forEach(voice => {
-      const voiceOption = this.createVoiceOption(voice);
+      const voiceOption = createVoiceOption(voice, this.addClickEffect);
       voiceList.appendChild(voiceOption);
     });
   }
   
-  // Create a voice option element
-  // Play a sample of the voice
-  private async playSample(voiceId: string, voiceName: string): Promise<void> {
-    try {
-      // Import the textToSpeech function only when needed to avoid circular dependencies
-      const { textToSpeech } = await import('./elevenLabsApi');
-      
-      const sampleText = "Hello! This is a sample of my voice.";
-      
-      // Change button to loading state
-      const playButton = document.querySelector(`[data-voice-id="${voiceId}"] .voice-play-button`);
-      if (playButton) {
-        playButton.innerHTML = ICONS.audioWave;
-        playButton.classList.add('loading');
-      }
-      
-      const audioData = await textToSpeech(sampleText, voiceId);
-      
-      if (audioData) {
-        // Create blob from audio data
-        const blob = new Blob([audioData], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create and play audio
-        const audio = new Audio(url);
-        audio.onended = () => {
-          // Clean up URL and reset button when audio ends
-          URL.revokeObjectURL(url);
-          if (playButton) {
-            playButton.innerHTML = ICONS.play;
-            playButton.classList.remove('loading');
-          }
-        };
-        
-        audio.play();
-      } else {
-        console.error('Failed to get audio sample');
-        if (playButton) {
-          playButton.innerHTML = ICONS.play;
-          playButton.classList.remove('loading');
-        }
-      }
-    } catch (error) {
-      console.error('Error playing sample:', error);
-      // Reset button if there's an error
-      const playButton = document.querySelector(`[data-voice-id="${voiceId}"] .voice-play-button`);
-      if (playButton) {
-        playButton.innerHTML = ICONS.play;
-        playButton.classList.remove('loading');
-      }
-    }
+  private addClickEffect(element: HTMLElement): void {
+    // Add a quick scale animation for feedback
+    element.style.transform = 'scale(0.9)';
+    setTimeout(() => {
+      element.style.transform = '';
+    }, 150);
   }
-
-  private createVoiceOption(voice: Voice): HTMLElement {
-    const voiceOption = document.createElement('div');
-    voiceOption.className = 'voice-option';
-    voiceOption.setAttribute('data-voice-id', voice.id);
-    
-    const voiceName = document.createElement('div');
-    voiceName.className = 'voice-name';
-    voiceName.textContent = voice.name;
-    
-    const voiceDetails = document.createElement('div');
-    voiceDetails.className = 'voice-details';
-    voiceDetails.textContent = `${voice.gender} • ${voice.accent}`;
-    
-    const playButton = document.createElement('div');
-    playButton.className = 'voice-play-button';
-    playButton.innerHTML = ICONS.play;
-    playButton.addEventListener('click', (e) => {
-      e.stopPropagation(); // Prevent selecting the voice when clicking play
-      console.log(`Play sample of ${voice.name} (${voice.id})`);
-      this.playSample(voice.id, voice.name);
-      // Add visual feedback
-      this.addClickEffect(playButton);
-    });
-    
-    voiceOption.appendChild(voiceName);
-    voiceOption.appendChild(voiceDetails);
-    voiceOption.appendChild(playButton);
-    
-    // Add click handler to select this voice
-    voiceOption.addEventListener('click', () => {
-      // Remove active class from all options
-      document.querySelectorAll('.voice-option').forEach(el => {
-        el.classList.remove('active');
-      });
-      
-      // Add active class to this option
-      voiceOption.classList.add('active');
-      
-      console.log(`Selected voice: ${voice.name} (${voice.id})`);
-    });
-    
-    return voiceOption;
+  
+  private createButton(iconName: keyof typeof ICONS, title: string, clickHandler: () => void): HTMLElement {
+    const button = document.createElement('div');
+    button.className = 'selector-button';
+    button.innerHTML = ICONS[iconName];
+    button.title = title;
+    button.addEventListener('click', clickHandler);
+    return button;
   }
   
   public create(isPanelOpen: boolean = false): void {
@@ -227,7 +150,7 @@ export class VoiceSelector {
     searchInput.placeholder = 'Search voices...';
     searchInput.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement;
-      this.filterVoices(target.value.toLowerCase());
+      filterVoices(target.value.toLowerCase());
     });
     
     searchContainer.appendChild(searchIcon);
@@ -246,7 +169,7 @@ export class VoiceSelector {
     } else {
       // Add voice options
       this.voices.forEach(voice => {
-        const voiceOption = this.createVoiceOption(voice);
+        const voiceOption = createVoiceOption(voice, this.addClickEffect);
         voiceList.appendChild(voiceOption);
       });
     }
@@ -267,7 +190,7 @@ export class VoiceSelector {
           const voiceDetails = selectedVoice.querySelector('.voice-details')?.textContent || '';
           
           // Update the current voice display
-          this.updateCurrentVoiceDisplay(voiceName, voiceDetails);
+          updateCurrentVoiceDisplay(voiceName, voiceDetails);
           
           // Save the selection to Chrome storage
           chrome.storage.local.set({ 
@@ -315,24 +238,7 @@ export class VoiceSelector {
     this.selectorElement = selector;
     
     // Load the currently selected voice if available
-    this.loadCurrentVoice();
-  }
-  
-  private createButton(iconName: keyof typeof ICONS, title: string, clickHandler: () => void): HTMLElement {
-    const button = document.createElement('div');
-    button.className = 'selector-button';
-    button.innerHTML = ICONS[iconName];
-    button.title = title;
-    button.addEventListener('click', clickHandler);
-    return button;
-  }
-  
-  private addClickEffect(element: HTMLElement): void {
-    // Add a quick scale animation for feedback
-    element.style.transform = 'scale(0.9)';
-    setTimeout(() => {
-      element.style.transform = '';
-    }, 150);
+    loadCurrentVoice();
   }
   
   public toggle(isPanelOpen: boolean = false): void {
@@ -352,56 +258,6 @@ export class VoiceSelector {
     }
   }
   
-  // Filter voices based on search input
-  private filterVoices(searchTerm: string): void {
-    const voiceOptions = document.querySelectorAll('.voice-option');
-    
-    if (searchTerm === '') {
-      // Show all voices if search term is empty
-      voiceOptions.forEach(option => {
-        option.style.display = 'flex';
-      });
-      return;
-    }
-    
-    // Filter voices based on name, gender, or accent
-    voiceOptions.forEach(option => {
-      const name = option.querySelector('.voice-name')?.textContent?.toLowerCase() || '';
-      const details = option.querySelector('.voice-details')?.textContent?.toLowerCase() || '';
-      
-      if (name.includes(searchTerm) || details.includes(searchTerm)) {
-        option.style.display = 'flex';
-      } else {
-        option.style.display = 'none';
-      }
-    });
-  }
-  
-  // Update the current voice display with the selected voice info
-  private updateCurrentVoiceDisplay(voiceName: string, voiceDetails: string): void {
-    const currentVoiceDisplay = document.getElementById('current-voice-display');
-    if (!currentVoiceDisplay) return;
-    
-    // Clear previous content
-    currentVoiceDisplay.innerHTML = '';
-    
-    // Create elements for voice info
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'current-voice-name';
-    nameSpan.textContent = voiceName;
-    
-    const detailsSpan = document.createElement('span');
-    detailsSpan.className = 'current-voice-details';
-    detailsSpan.textContent = voiceDetails;
-    
-    // Append to container
-    currentVoiceDisplay.appendChild(nameSpan);
-    currentVoiceDisplay.appendChild(detailsSpan);
-    
-    // Show the container
-    currentVoiceDisplay.style.display = 'flex';
-  }
-  
   public updatePosition(isPanelOpen: boolean): void {
     const selector = document.getElementById(this.selectorId);
     if (selector) {
@@ -415,29 +271,5 @@ export class VoiceSelector {
       
       console.log(`Voice selector updated position. Panel open: ${isPanelOpen}`);
     }
-  }
-  
-  // Load and display the currently selected voice when the selector is opened
-  private loadCurrentVoice(): void {
-    chrome.storage.local.get(['selectedVoiceId', 'selectedVoiceName', 'selectedVoiceDetails'], (result) => {
-      if (result.selectedVoiceId && result.selectedVoiceName) {
-        console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId})`);
-        
-        // Update the display
-        this.updateCurrentVoiceDisplay(result.selectedVoiceName, result.selectedVoiceDetails || '');
-        
-        // Also highlight the corresponding voice in the list if it exists
-        const voiceOption = document.querySelector(`.voice-option[data-voice-id="${result.selectedVoiceId}"]`);
-        if (voiceOption) {
-          // Remove active class from all options
-          document.querySelectorAll('.voice-option').forEach(el => {
-            el.classList.remove('active');
-          });
-          
-          // Add active class to the selected option
-          voiceOption.classList.add('active');
-        }
-      }
-    });
   }
 }

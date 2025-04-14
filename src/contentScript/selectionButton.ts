@@ -7,7 +7,7 @@ import '../../css/selectionButton.css';
 
 export class SelectionButton {
   private buttonId: string = 'extension-selection-button';
-  private buttonElement: HTMLElement | null = null;
+  private buttonElement: HTMLImageElement | null = null;
   private currentState: 'play' | 'loading' | 'speaking' = 'play';
   private selectedText: string = '';
   private isEnabled: boolean = true; // Default to enabled
@@ -129,7 +129,7 @@ export class SelectionButton {
     }
 
     // Create button element
-    const button = document.createElement('img');
+    const button = document.createElement('img') as HTMLImageElement;
     button.id = this.buttonId;
     button.alt = "Text to speech button";
     button.setAttribute("role", "button");
@@ -334,7 +334,7 @@ export class SelectionButton {
   }
   
   // Timer for auto-reset
-  private _resetTimeout: number | null = null;
+  private _resetTimeout: ReturnType<typeof setTimeout> | null = null;
   
   // Show tooltip with message
   private showTooltip(message: string): void {

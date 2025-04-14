@@ -1,10 +1,10 @@
-import { SidePlayer } from './player';
-import { SidePanel } from './panel';
+import { SidePlayer } from './player/SidePlayer';
+import { SidePanel } from './panel/SidePanel';
 import { VoiceSelector } from './voiceSelector';
 import { SelectionButton } from './selectionButton';
-import { TopPlayer } from './topPlayer';
+import { TopPlayer } from './topPlayer/TopPlayer';
 import { addKeyboardShortcuts } from './utils';
-import initializeTopPlayerPrefs from './topPlayerPrefsLoader';
+import { initializeTopPlayerPrefs } from './topPlayer/handlers/prefsHandler';
 
 // Import global CSS files to help Vite track dependencies
 import '../../css/fonts.css';

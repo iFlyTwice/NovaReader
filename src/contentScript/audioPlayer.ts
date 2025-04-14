@@ -184,7 +184,7 @@ export class AudioStreamPlayer {
         }
         
         // Append this chunk to the buffer
-        this.appendChunk(value.buffer);
+        this.appendChunk(value.buffer as ArrayBuffer);
       }
     } catch (error) {
       console.error('[AudioPlayer] Error processing stream:', error);
@@ -302,7 +302,7 @@ export class AudioStreamPlayer {
           try {
             this.sourceBuffer.appendBuffer(chunk);
           } catch (appendError) {
-            if (appendError.name === 'QuotaExceededError') {
+            if ((appendError as any).name === 'QuotaExceededError') {
               // Buffer is full, we need to remove more data
               this.bufferFullErrorCount++;
               console.warn(`[AudioPlayer] Buffer full (error #${this.bufferFullErrorCount}), removing more data before retrying`);
@@ -346,7 +346,7 @@ export class AudioStreamPlayer {
         this.isAppending = false;
         
         // If the error indicates the buffer is busy, retry after a delay
-        if (error.name === 'InvalidStateError') {
+        if ((error as any).name === 'InvalidStateError') {
           setTimeout(() => this.processAppendQueue(), 100);
         }
       }
@@ -528,7 +528,7 @@ export class AudioStreamPlayer {
       
     } catch (error) {
       console.error('[AudioPlayer] Error playing text (non-streaming):', error);
-      this.onPlaybackError(`Error playing audio: ${error.message}`);
+      this.onPlaybackError(`Error playing audio: ${(error as any).message}`);
       this.onPlaybackEnd();
     }
   }
@@ -618,7 +618,7 @@ export class AudioStreamPlayer {
       } catch (playError) {
         console.error('[AudioPlayer] Error starting audio playback:', playError);
         this.clearStreamingTimeout();
-        throw new Error(`Audio playback error: ${playError.message}`);
+        throw new Error(`Audio playback error: ${(playError as any).message}`);
       }
       
     } catch (error) {

@@ -3,7 +3,7 @@
  * and sets up listeners to keep the UI in sync with the user's preference.
  */
 
-import { getUser, getUserPreferences } from '../supabase/client';
+import { getUser, getUserPreferences } from '../../../supabase/client';
 
 /**
  * Initialize the top player preferences
@@ -70,6 +70,3 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
     console.error('[TopPlayerPrefs] Error initializing top player preferences:', error);
   }
 };
-
-// Export the initialization function
-export default initializeTopPlayerPrefs;

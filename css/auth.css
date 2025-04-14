@@ -15,17 +15,17 @@
 #extension-side-panel .auth-tabs {
   display: flex !important;
   justify-content: center !important;
-  margin-bottom: 20px !important;
+  margin-bottom: 15px !important;
   border-bottom: 1px solid #444 !important;
 }
 
 #extension-side-panel .auth-tab-btn {
-  padding: 8px 16px !important;
+  padding: 6px 14px !important;
   background: transparent !important;
   color: #aaa !important;
   border: none !important;
   cursor: pointer !important;
-  font-size: 16px !important;
+  font-size: 15px !important;
   transition: color 0.2s ease !important;
 }
 
@@ -35,19 +35,52 @@
   margin-bottom: -1px !important;
 }
 
+/* Compact login specific styles */
+#extension-side-panel .compact-auth-message {
+  margin-bottom: 12px !important;
+  font-size: 13px !important;
+}
+
+#extension-side-panel .compact-form .form-group.compact {
+  margin-bottom: 6px !important;
+}
+
+#extension-side-panel .compact-form .form-label {
+  margin-bottom: 2px !important;
+  font-size: 13px !important;
+}
+
+#extension-side-panel .compact-form .form-control {
+  padding: 6px 8px !important;
+  height: 30px !important;
+  font-size: 13px !important;
+}
+
+#extension-side-panel .small-text {
+  font-size: 11px !important;
+  margin-top: 1px !important;
+  line-height: 1.2 !important;
+}
+
 /* Center and style the "Sign In" button */
 #extension-side-panel #login-form button[type="submit"] {
   display: block !important;
   width: 80% !important;
-  margin: 25px auto !important;
-  padding: 12px !important;
-  font-size: 16px !important;
+  margin: 15px auto !important;
+  padding: 10px !important;
+  font-size: 15px !important;
   background-color: #27272a !important;
   color: white !important;
   border: none !important;
   border-radius: 6px !important;
   cursor: pointer !important;
   text-align: center !important;
+}
+
+#extension-side-panel #login-form button[type="submit"].compact-btn {
+  margin: 10px auto !important;
+  padding: 7px !important;
+  font-size: 14px !important;
 }
 
 #extension-side-panel #login-form button[type="submit"]:hover {
@@ -57,13 +90,18 @@
 /* Center the "Forgot Password" link */
 #extension-side-panel .form-footer {
   text-align: center !important;
-  margin-bottom: 20px !important;
+  margin-bottom: 15px !important;
+}
+
+#extension-side-panel .form-footer.compact {
+  margin-bottom: 8px !important;
+  font-size: 12px !important;
 }
 
 #extension-side-panel #forgot-password {
   color: #aaa !important;
   text-decoration: none !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
 }
 
 #extension-side-panel #forgot-password:hover {
@@ -76,9 +114,14 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 20px 0 !important;
+  margin: 15px 0 !important;
   color: #666 !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
+}
+
+#extension-side-panel .social-divider.compact {
+  margin: 8px 0 !important;
+  font-size: 12px !important;
 }
 
 #extension-side-panel .social-divider::before,
@@ -94,28 +137,33 @@
   display: block !important;
   width: 80% !important;
   margin: 0 auto !important;
-  padding: 12px !important;
+  padding: 10px !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
   background-color: white !important;
   color: #333 !important;
   border-radius: 6px !important;
-  font-size: 16px !important;
+  font-size: 14px !important;
   cursor: pointer !important;
 }
 
+#extension-side-panel .btn-google.compact-btn {
+  padding: 7px !important;
+  font-size: 13px !important;
+}
+
 #extension-side-panel .btn-google svg {
-  margin-right: 10px !important;
+  margin-right: 8px !important;
 }
 
 /* Make the signup button match the same styling */
 #extension-side-panel #signup-form button[type="submit"] {
   display: block !important;
   width: 80% !important;
-  margin: 25px auto !important;
-  padding: 12px !important;
-  font-size: 16px !important;
+  margin: 15px auto !important;
+  padding: 10px !important;
+  font-size: 15px !important;
   background-color: #27272a !important;
   color: white !important;
   border: none !important;
@@ -124,8 +172,27 @@
   text-align: center !important;
 }
 
+#extension-side-panel #signup-form button[type="submit"].compact-btn {
+  margin: 10px auto !important;
+  padding: 7px !important;
+  font-size: 14px !important;
+}
+
 #extension-side-panel #signup-form button[type="submit"]:hover {
   background-color: #3f3f46 !important;
+}
+
+/* Compact social login */
+#extension-side-panel .social-login.compact {
+  margin-top: 5px !important;
+}
+
+/* Form error and success messages */
+#extension-side-panel .form-error,
+#extension-side-panel .form-success {
+  font-size: 12px !important;
+  margin: 4px 0 !important;
+  line-height: 1.2 !important;
 }
 
 /* Reading stats styling */

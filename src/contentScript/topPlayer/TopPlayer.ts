@@ -119,7 +119,7 @@ export class TopPlayer {
       setTimeout(() => extractPageText(this), 100);
     }
     
-    // Use the same settings icon as the side player
+    // Simplified UI with settings and close buttons
     return `
       <div class="top-player-content" data-nova-reader="top-player-content">
         <button class="top-player-play-button" id="top-player-play-button" data-nova-reader="play-button">
@@ -128,11 +128,11 @@ export class TopPlayer {
         <div class="top-player-title" data-nova-reader="title">${this.title}</div>
         <div class="top-player-duration" data-nova-reader="duration">${this.duration}</div>
         <div class="top-player-controls" data-nova-reader="controls">
-          <div class="top-player-playback-speed" data-nova-reader="playback-speed">
-            <span class="top-player-playback-speed-text">1x</span>
-          </div>
           <button class="top-player-settings-button" id="top-player-settings-button" data-nova-reader="settings-button">
             ${ICONS.settings}
+          </button>
+          <button class="top-player-close-button" id="top-player-close-button" data-nova-reader="close-button">
+            ${ICONS.close}
           </button>
         </div>
       </div>
@@ -250,7 +250,6 @@ export class TopPlayer {
     
     // Settings button
     const settingsButton = this.playerElement.querySelector('#top-player-settings-button');
-    
     if (settingsButton) {
       settingsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event from bubbling up
@@ -260,9 +259,6 @@ export class TopPlayer {
           this.closeSettingsDropdown();
           return;
         }
-        
-        // Instead of using absolute positioning, we'll append the dropdown directly to the top player
-        // This ensures it moves with the player when scrolling
         
         // Create the dropdown with reference to the settings button
         this.settingsDropdown = new SettingsDropdown({
@@ -280,36 +276,17 @@ export class TopPlayer {
           }
         });
         
-        // Append the dropdown to the document body instead of inside the button
-        // This prevents it from being cut off by overflow: hidden
+        // Append the dropdown to the document body
         document.body.appendChild(this.settingsDropdown.render());
       });
     }
     
-    // Playback speed
-    const playbackSpeed = this.playerElement.querySelector('.top-player-playback-speed');
-    if (playbackSpeed) {
-      playbackSpeed.addEventListener('click', () => {
-        // Simple speed cycle: 1x -> 1.5x -> 2x -> 0.5x -> 0.75x -> 1x
-        const speedText = playbackSpeed.querySelector('.top-player-playback-speed-text');
-        if (speedText) {
-          const currentSpeed = speedText.textContent || '1x';
-          let newSpeed = '1x';
-          
-          switch (currentSpeed) {
-            case '1x': newSpeed = '1.5x'; break;
-            case '1.5x': newSpeed = '2x'; break;
-            case '2x': newSpeed = '0.5x'; break;
-            case '0.5x': newSpeed = '0.75x'; break;
-            case '0.75x': newSpeed = '1x'; break;
-            default: newSpeed = '1x';
-          }
-          
-          speedText.textContent = newSpeed;
-          console.log('Top Player: Playback speed changed to', newSpeed);
-          
-          // Here you would typically change the actual playback speed
-        }
+    // Close button
+    const closeButton = this.playerElement.querySelector('#top-player-close-button');
+    if (closeButton) {
+      closeButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event from bubbling up
+        this.hide();
       });
     }
   }

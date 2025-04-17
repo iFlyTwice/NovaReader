@@ -1,9 +1,9 @@
 .top-player-container {
   width: 100%;
-  max-width: 1000px;
+  max-width: 800px;
   background-color: #1c1c1c;
   color: white;
-  border-radius: 8px;
+  border-radius: 50px;
   margin: 0 auto 20px auto;
   overflow: hidden;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
@@ -18,12 +18,12 @@
 .top-player-content {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  padding: 10px 16px;
 }
 
 .top-player-play-button {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   background-color: #27272a;
   border-radius: 50%;
   display: flex;
@@ -32,7 +32,7 @@
   cursor: pointer;
   border: none;
   outline: none;
-  margin-right: 15px;
+  margin-right: 12px;
   flex-shrink: 0;
   transition: transform 0.2s ease-in-out;
 }
@@ -67,15 +67,16 @@
 }
 
 .top-player-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   flex-grow: 1;
 }
 
 .top-player-duration {
   color: #aaa;
-  font-size: 14px;
+  font-size: 13px;
   margin-left: 10px;
+  margin-right: 10px;
 }
 
 .top-player-controls {
@@ -84,10 +85,36 @@
   margin-left: auto;
 }
 
+/* Close button for the top player */
+.top-player-close-button {
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  color: #aaa;
+  transition: all 0.2s ease-in-out;
+}
+
+.top-player-close-button:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.top-player-close-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 @media (max-width: 768px) {
   .top-player-container {
-    border-radius: 0;
-    max-width: 100%;
+    border-radius: 50px;
+    max-width: 95%;
   }
   
   .top-player-title {
@@ -111,5 +138,78 @@
   
   .top-player-duration {
     color: #666;
+  }
+  
+  .top-player-close-button {
+    color: #666;
+  }
+  
+  .top-player-close-button:hover {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Style settings button for a cleaner UI */
+.top-player-settings-button {
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  color: #aaa;
+  margin-right: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.top-player-settings-button:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.top-player-settings-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Hide playback speed controls for a cleaner UI */
+.top-player-playback-speed {
+  display: none;
+}
+
+/* Progress bar styling */
+.top-player-progress-bar {
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.1);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.top-player-progress {
+  height: 100%;
+  background-color: #5664d2;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+@media (prefers-color-scheme: light) {
+  .top-player-progress-bar {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .top-player-settings-button {
+    color: #666;
+  }
+  
+  .top-player-settings-button:hover {
+    color: #333;
+    background-color: rgba(0, 0, 0, 0.05);
   }
 }

@@ -78,6 +78,20 @@
   position: relative;
 }
 
+/* Smaller close button at the bottom of the player */
+#extension-side-player .close-button {
+  width: 32px;
+  height: 32px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* Make the SVG inside the close button smaller too */
+#extension-side-player .close-button svg {
+  width: 16px;
+  height: 16px;
+}
+
 .player-button svg {
   width: 18px;
   height: 18px;

@@ -177,13 +177,6 @@ export class SidePlayer {
     });
     this.playButton = playButton;
     
-    // Thumbs down button (dislike)
-    const thumbsDownButton = createButton(ICONS.thumbsDown, 'Dislike', () => {
-      console.log('Dislike clicked');
-      // Add visual feedback
-      addClickEffect(thumbsDownButton);
-    });
-    
     // Screenshot button
     const screenshotButton = createButton(ICONS.screenshot, 'Screenshot', () => {
       console.log('Screenshot clicked');
@@ -280,6 +273,7 @@ export class SidePlayer {
       // Add visual feedback
       addClickEffect(closeButton);
     });
+    closeButton.classList.add('close-button');
     
     // Create a divider for after the play button
     const dividerAfterPlay = document.createElement('div');
@@ -289,7 +283,6 @@ export class SidePlayer {
     player.appendChild(timeDisplay);
     player.appendChild(playButton);
     player.appendChild(dividerAfterPlay); // Add divider after play button
-    player.appendChild(thumbsDownButton);
     player.appendChild(screenshotButton);
     player.appendChild(selectVoiceButton);
     player.appendChild(settingsButton);

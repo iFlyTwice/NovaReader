@@ -44,12 +44,27 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
       }
       
       // Dispatch event to update top player visibility
-      const event = new CustomEvent('update-top-player-visibility', {
-        detail: { visible: topPlayerEnabled }
-      });
-      document.dispatchEvent(event);
+      dispatchVisibilityEvent(topPlayerEnabled);
       
       console.log(`[TopPlayerPrefs] Initialized top player visibility: ${topPlayerEnabled ? 'visible' : 'hidden'}`);
+    });
+    
+    // Add a listener for page load to ensure the top player is created
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('[TopPlayerPrefs] DOMContentLoaded event fired');
+      chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+        const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+        dispatchVisibilityEvent(isVisible);
+      });
+    });
+    
+    // Add another listener for the load event
+    window.addEventListener('load', () => {
+      console.log('[TopPlayerPrefs] Window load event fired');
+      chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+        const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+        dispatchVisibilityEvent(isVisible);
+      });
     });
     
     // Listen for storage changes
@@ -58,14 +73,19 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
         const newValue = changes.topPlayerEnabled.newValue;
         
         // Dispatch event to update top player visibility
-        const event = new CustomEvent('update-top-player-visibility', {
-          detail: { visible: newValue }
-        });
-        document.dispatchEvent(event);
+        dispatchVisibilityEvent(newValue);
         
         console.log(`[TopPlayerPrefs] Top player visibility changed: ${newValue ? 'visible' : 'hidden'}`);
       }
     });
+    
+    // Helper function to dispatch visibility event
+    function dispatchVisibilityEvent(visible: boolean): void {
+      const event = new CustomEvent('update-top-player-visibility', {
+        detail: { visible }
+      });
+      document.dispatchEvent(event);
+    }
   } catch (error) {
     console.error('[TopPlayerPrefs] Error initializing top player preferences:', error);
   }

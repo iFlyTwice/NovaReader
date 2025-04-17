@@ -22,20 +22,17 @@ export function setupVisibilityListener(topPlayer: any): void {
 }
 
 export function checkInitialVisibility(topPlayer: any): void {
+  // First check - immediate
   chrome.storage.local.get(['topPlayerEnabled'], (result) => {
     // Default to true if setting doesn't exist
     const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
     console.log(`📖 [TopPlayer] Initial visibility from storage: ${isVisible ? 'visible' : 'hidden'}`);
     
     if (isVisible) {
-      // If it should be visible, check if it needs to be created
-      // But delay slightly to allow for page to load
-      setTimeout(() => {
-        if (!topPlayer.playerElement && !topPlayer.insertionInProgress) {
-          console.log('📖 [TopPlayer] Creating player during initial visibility check');
-          topPlayer.show();
-        }
-      }, 500);
+      // Force create the player regardless of current state
+      console.log('📖 [TopPlayer] Creating player during initial visibility check');
+      // Use create directly to ensure it's created
+      topPlayer.create();
     } else if (topPlayer.playerElement) {
       // If player exists but should be hidden, ensure playback is stopped before removing
       if (topPlayer.isPlaying) {
@@ -46,16 +43,30 @@ export function checkInitialVisibility(topPlayer: any): void {
     }
   });
   
-  // Additional check shortly after page load when DOM is more likely to be ready
+  // Second check - after a short delay
+  setTimeout(() => {
+    chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+      // Default to true if setting doesn't exist
+      const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+      console.log(`📖 [TopPlayer] Short delay visibility check: ${isVisible ? 'visible' : 'hidden'}`);
+      
+      if (isVisible && !topPlayer.playerElement) {
+        console.log('📖 [TopPlayer] Creating player during short delay check');
+        topPlayer.create();
+      }
+    });
+  }, 500);
+  
+  // Third check - after DOM is more likely to be ready
   setTimeout(() => {
     chrome.storage.local.get(['topPlayerEnabled'], (result) => {
       // Default to true if setting doesn't exist
       const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
       console.log(`📖 [TopPlayer] Delayed visibility check: ${isVisible ? 'visible' : 'hidden'}`);
       
-      if (isVisible && !topPlayer.playerElement && !topPlayer.insertionInProgress) {
+      if (isVisible && !topPlayer.playerElement) {
         console.log('📖 [TopPlayer] Creating player during delayed visibility check');
-        topPlayer.show();
+        topPlayer.create();
       } else if (!isVisible && topPlayer.playerElement) {
         // Ensure playback is stopped before removing
         if (topPlayer.isPlaying) {
@@ -66,6 +77,41 @@ export function checkInitialVisibility(topPlayer: any): void {
       }
     });
   }, 1500);
+  
+  // Final check - after page is fully loaded
+  window.addEventListener('load', () => {
+    chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+      // Default to true if setting doesn't exist
+      const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+      console.log(`📖 [TopPlayer] Window load visibility check: ${isVisible ? 'visible' : 'hidden'}`);
+      
+      if (isVisible && !topPlayer.playerElement) {
+        console.log('📖 [TopPlayer] Creating player during window load check');
+        topPlayer.create();
+      }
+    });
+  });
+  
+  // Mutation observer to detect DOM changes that might affect player insertion
+  const observer = new MutationObserver(() => {
+    chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+      const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
+      
+      if (isVisible && !topPlayer.playerElement && !topPlayer.insertionInProgress) {
+        console.log('📖 [TopPlayer] DOM changed, attempting to create player');
+        topPlayer.create();
+      }
+    });
+  });
+  
+  // Start observing the document with the configured parameters
+  observer.observe(document.body, { childList: true, subtree: true });
+  
+  // Stop the observer after 10 seconds to prevent performance issues
+  setTimeout(() => {
+    observer.disconnect();
+    console.log('📖 [TopPlayer] Stopped DOM mutation observer');
+  }, 10000);
 }
 
 export function toggleVisibility(topPlayer: any): void {

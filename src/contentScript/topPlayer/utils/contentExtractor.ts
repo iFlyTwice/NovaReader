@@ -6,6 +6,12 @@
 export function extractPageText(topPlayer: any): void {
   console.log('[TopPlayer] Extracting page text...');
   
+  // If we already have paragraphs, don't extract again
+  if (topPlayer.paragraphs && topPlayer.paragraphs.length > 0) {
+    console.log(`[TopPlayer] Already have ${topPlayer.paragraphs.length} paragraphs, skipping extraction`);
+    return;
+  }
+  
   try {
     // Find the main content container
     let mainContent: Element | null = document.querySelector('body');
@@ -119,6 +125,18 @@ export function extractPageText(topPlayer: any): void {
     if (paragraphs.length === 0 && mainContent) {
       console.log('[TopPlayer] No paragraphs found, using fallback text extraction');
       
+      // Try to get text from the document title and meta description first
+      const title = document.title;
+      const metaDescription = document.querySelector('meta[name="description"]')?.getAttribute('content');
+      
+      if (title) {
+        paragraphs.push(title);
+      }
+      
+      if (metaDescription) {
+        paragraphs.push(metaDescription);
+      }
+      
       // Get all paragraph-like elements
       const paragraphElements = mainContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, div:not(:has(*))');
       
@@ -190,6 +208,12 @@ export function extractPageText(topPlayer: any): void {
 export function fallbackTextExtraction(topPlayer: any): void {
   console.debug('[TopPlayer] Starting fallback extraction');
   
+  // If we already have paragraphs, don't extract again unless forced
+  if (topPlayer.paragraphs && topPlayer.paragraphs.length > 0) {
+    console.log(`[TopPlayer] Already have ${topPlayer.paragraphs.length} paragraphs, skipping fallback extraction`);
+    return;
+  }
+  
   try {
     // Get all visible text on the page
     const allText = document.body.innerText;
@@ -215,6 +239,11 @@ export function fallbackTextExtraction(topPlayer: any): void {
       const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
       topPlayer.duration = `${readingTimeMinutes} min`;
       
+      // Set a minimum duration for very short content
+      if (topPlayer.paragraphs.length === 1 && wordCount < 50) {
+        topPlayer.duration = "1 min";
+      }
+      
       // Update UI if player is already created
       if (topPlayer.playerElement) {
         const durationElement = topPlayer.playerElement.querySelector('.top-player-duration');
@@ -226,6 +255,19 @@ export function fallbackTextExtraction(topPlayer: any): void {
       console.log(`📖 [TopPlayer] Found ${topPlayer.paragraphs.length} paragraphs with ${wordCount} words (${readingTimeMinutes} min)`);
     } else {
       console.debug('[TopPlayer] Still waiting for content to load');
+      
+      // If we still don't have any paragraphs, create a default one
+      topPlayer.paragraphs = ["Listen to This Page"];
+      topPlayer.pageText = "Listen to This Page";
+      topPlayer.duration = "1 min";
+      
+      // Update UI if player is already created
+      if (topPlayer.playerElement) {
+        const durationElement = topPlayer.playerElement.querySelector('.top-player-duration');
+        if (durationElement) {
+          durationElement.textContent = "1 min";
+        }
+      }
     }
   } catch (error) {
     console.error('[TopPlayer] Error in fallback text extraction:', error);

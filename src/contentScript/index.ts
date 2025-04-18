@@ -1,6 +1,7 @@
 import { SidePlayer } from './player/SidePlayer';
 import { SidePanel } from './panel/SidePanel';
 import { VoiceSelector } from './voiceSelector';
+import { VoiceStyler } from './voiceStyler';
 import { SelectionButton } from './selectionButton';
 import { TopPlayer } from './topPlayer/TopPlayer';
 import { addKeyboardShortcuts, ICONS } from './utils';
@@ -14,12 +15,15 @@ class ExtensionController {
   private player: SidePlayer;
   private panel: SidePanel;
   private voiceSelector: VoiceSelector;
+  private voiceStyler: VoiceStyler;
   private selectionButton: SelectionButton;
   private topPlayer: TopPlayer;
   private isPanelOpen: boolean = false;
   private isVoiceSelectorOpen: boolean = false;
+  private isVoiceStylerOpen: boolean = false;
   private documentClickListener: ((event: MouseEvent) => void) | null = null;
   private panelClickListener: ((event: MouseEvent) => void) | null = null;
+  private stylerClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
     console.info('ContentScript is running');
@@ -28,6 +32,7 @@ class ExtensionController {
     this.player = new SidePlayer();
     this.panel = new SidePanel();
     this.voiceSelector = new VoiceSelector();
+    this.voiceStyler = new VoiceStyler();
     this.selectionButton = new SelectionButton();
     this.topPlayer = new TopPlayer();
     
@@ -47,6 +52,9 @@ class ExtensionController {
     
     // Initialize top player preferences
     initializeTopPlayerPrefs();
+    
+    // Listen for voice style changes and update player
+    this.setupVoiceStyleChangeListener();
     
     // Create the side player immediately
     setTimeout(() => {
@@ -117,6 +125,18 @@ class ExtensionController {
       (this.selectionButton as any).setState(state);
     });
   }
+  
+  private setupVoiceStyleChangeListener(): void {
+    document.addEventListener('voice-style-change', (event: any) => {
+      const { emotion, cadence } = event.detail;
+      
+      // Update the player with the new style
+      if (this.player && typeof (this.player as any).setSSMLStyle === 'function') {
+        console.log('[Controller] Updating player with new style:', { emotion, cadence });
+        (this.player as any).setSSMLStyle({ emotion, cadence });
+      }
+    });
+  }
 
   private setupMessageListeners(): void {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -143,6 +163,11 @@ class ExtensionController {
       this.toggleVoiceSelector();
     });
     
+    // Listen for voice styler toggle event
+    document.addEventListener('toggle-voice-styler', () => {
+      this.toggleVoiceStyler();
+    });
+    
     // Listen for top player toggle event
     document.addEventListener('toggle-top-player', () => {
       this.toggleTopPlayer();
@@ -162,6 +187,12 @@ class ExtensionController {
       }
       
       return;
+    }
+    
+    // Close voice styler if open
+    if (this.isVoiceStylerOpen) {
+      this.voiceStyler.hide();
+      this.isVoiceStylerOpen = false;
     }
     
     // Create voice selector
@@ -222,6 +253,74 @@ class ExtensionController {
     
     // Add the click listener to close on outside clicks
     document.addEventListener('mousedown', this.documentClickListener);
+  }
+  
+  private toggleVoiceStyler(): void {
+    // If voice styler is already open, just hide it
+    if (this.isVoiceStylerOpen) {
+      this.voiceStyler.hide();
+      this.isVoiceStylerOpen = false;
+      
+      // Remove document click listener if it exists
+      if (this.stylerClickListener) {
+        document.removeEventListener('mousedown', this.stylerClickListener);
+        this.stylerClickListener = null;
+      }
+      
+      return;
+    }
+    
+    // Close voice selector if open
+    if (this.isVoiceSelectorOpen) {
+      this.voiceSelector.remove();
+      this.isVoiceSelectorOpen = false;
+      
+      if (this.documentClickListener) {
+        document.removeEventListener('mousedown', this.documentClickListener);
+        this.documentClickListener = null;
+      }
+    }
+    
+    // Show voice styler
+    this.voiceStyler.show();
+    this.isVoiceStylerOpen = true;
+    
+    console.log(`Voice styler shown. Panel open: ${this.isPanelOpen}`);
+    
+    // Clean up any existing listener first
+    if (this.stylerClickListener) {
+      document.removeEventListener('mousedown', this.stylerClickListener);
+      this.stylerClickListener = null;
+    }
+    
+    // Set up a listener to close the styler when clicking outside
+    this.stylerClickListener = (event: MouseEvent) => {
+      // Skip if voice styler is already closed
+      if (!this.isVoiceStylerOpen) return;
+      
+      // Get the voice styler element
+      const voiceStyler = document.getElementById('extension-voice-styler');
+      
+      // If we have a styler and the click is outside of it
+      if (voiceStyler && !voiceStyler.contains(event.target as Node)) {
+        // Don't process if the click is on style button itself (to avoid conflicts)
+        const styleButton = document.querySelector('.voice-style-toggle');
+        if (styleButton && styleButton.contains(event.target as Node)) {
+          return;
+        }
+        
+        // Close the voice styler
+        this.voiceStyler.hide();
+        this.isVoiceStylerOpen = false;
+        
+        // Remove the document click listener
+        document.removeEventListener('mousedown', this.stylerClickListener!);
+        this.stylerClickListener = null;
+      }
+    };
+    
+    // Add the click listener to close on outside clicks
+    document.addEventListener('mousedown', this.stylerClickListener);
   }
 
   private setupKeyboardShortcuts(): void {
@@ -296,6 +395,20 @@ class ExtensionController {
       }
       console.log(`Voice selector position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
     }
+    
+    // If voice styler is open, update its position
+    const voiceStyler = document.getElementById('extension-voice-styler');
+    if (voiceStyler) {
+      if (this.isPanelOpen) {
+        voiceStyler.classList.add('panel-open');
+      } else {
+        // Wait for the panel animation to finish before moving the voice styler back
+        setTimeout(() => {
+          voiceStyler.classList.remove('panel-open');
+        }, 50);
+      }
+      console.log(`Voice styler position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
+    }
   }
   
   private setupPanelOutsideClickListener(): void {
@@ -338,6 +451,14 @@ class ExtensionController {
         if (voiceSelector) {
           setTimeout(() => {
             voiceSelector.classList.remove('panel-open');
+          }, 50);
+        }
+        
+        // Update voice styler position if open
+        const voiceStyler = document.getElementById('extension-voice-styler');
+        if (voiceStyler) {
+          setTimeout(() => {
+            voiceStyler.classList.remove('panel-open');
           }, 50);
         }
         

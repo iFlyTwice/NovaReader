@@ -34,6 +34,7 @@ export default defineManifest({
         'css/player.css', 
         'css/panel.css', 
         'css/voiceSelector.css',
+        'css/voiceStyler.css',
         'css/selectionButton.css',
         'css/auth.css',
         'css/top-player.css'
@@ -55,6 +56,7 @@ export default defineManifest({
         'css/panel.css',
         'css/fonts.css',
         'css/voiceSelector.css',
+        'css/voiceStyler.css',
         'css/selectionButton.css',
         'css/auth.css',
         'css/top-player.css',

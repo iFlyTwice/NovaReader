@@ -1,5 +1,5 @@
 // Audio player implementation for streaming TTS content
-import { streamTextToSpeech, textToSpeech } from './speechifyApi';
+import { streamTextToSpeech, textToSpeech, SSMLStyleOptions } from './speechifyApi';
 import { TTS_PROVIDER, DEFAULT_SPEECHIFY_MODEL_ID } from '../config';
 
 // Maximum time to wait for streaming setup in milliseconds (15 seconds)
@@ -21,6 +21,7 @@ export class AudioStreamPlayer {
   private currentText: string = '';
   private currentVoiceId: string = '';
   private currentModelId: string = '';
+  private currentSSMLStyle: SSMLStyleOptions | null = null;
   
   // Streaming setup timeout
   private streamingSetupTimeout: number | null = null;
@@ -188,7 +189,7 @@ export class AudioStreamPlayer {
       await new Promise(resolve => setTimeout(resolve, 50));
       
       // Make the streaming call to the Speechify API to get the audio URL
-      await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
+      await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId, this.currentSSMLStyle || undefined);
       
       // Add a small delay to ensure the audioUrl is set by the API
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -204,7 +205,7 @@ export class AudioStreamPlayer {
         const { textToSpeech } = await import('./speechifyApi');
         
         // Get the audio data directly
-        const audioData = await textToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
+        const audioData = await textToSpeech(this.currentText, this.currentVoiceId, this.currentModelId, this.currentSSMLStyle || undefined);
         
         if (!audioData) {
           throw new Error('Failed to get audio data from direct TTS call');
@@ -313,7 +314,12 @@ export class AudioStreamPlayer {
       }
       
       // Get stream from TTS API
-      const stream = await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
+      const stream = await streamTextToSpeech(
+        this.currentText, 
+        this.currentVoiceId, 
+        this.currentModelId,
+        this.currentSSMLStyle || undefined
+      );
       
       if (!stream) {
         console.error('[AudioPlayer] Failed to get audio stream - null stream returned');
@@ -664,7 +670,12 @@ export class AudioStreamPlayer {
    * Play text using TTS API without streaming (for shorter texts)
    * This uses the same approach as the voice selector
    */
-  public async playTextNonStreaming(text: string, voiceId: string, modelId?: string): Promise<void> {
+  public async playTextNonStreaming(
+    text: string, 
+    voiceId: string, 
+    modelId?: string,
+    ssmlStyle?: SSMLStyleOptions
+  ): Promise<void> {
     if (!text.trim()) {
       this.onPlaybackError('No text provided for playback');
       return;
@@ -678,6 +689,7 @@ export class AudioStreamPlayer {
         textLength: text.length, 
         voiceId, 
         modelId: finalModelId,
+        ssmlStyle: ssmlStyle ? 'Yes' : 'No',
         provider: TTS_PROVIDER
       });
       
@@ -686,7 +698,7 @@ export class AudioStreamPlayer {
       
       // Get complete audio data from TTS API
       console.log(`[AudioPlayer] Requesting audio from ${TTS_PROVIDER} API (non-streaming)`);
-      const audioData = await textToSpeech(text, voiceId, finalModelId);
+      const audioData = await textToSpeech(text, voiceId, finalModelId, ssmlStyle);
       
       if (!audioData) {
         console.error('[AudioPlayer] Failed to get audio data - null returned');
@@ -731,6 +743,11 @@ export class AudioStreamPlayer {
       // For Speechify, try the direct audio approach
       if (TTS_PROVIDER === 'speechify') {
         console.log('[AudioPlayer] Error with non-streaming, trying direct approach for Speechify');
+        this.currentText = text;
+        this.currentVoiceId = voiceId;
+        this.currentModelId = finalModelId;
+        this.currentSSMLStyle = ssmlStyle || null;
+        
         this.useSpeechifyDirectAudio();
         return;
       }
@@ -744,10 +761,14 @@ export class AudioStreamPlayer {
   private MAX_NON_STREAMING_LENGTH: number = 3000;
   
   /**
-   * Play text using TTS API
-   * Always use streaming for proper playback
+   * Play text using TTS API with SSML styling support
    */
-  public async playText(text: string, voiceId: string, modelId?: string): Promise<void> {
+  public async playText(
+    text: string, 
+    voiceId: string, 
+    modelId?: string,
+    ssmlStyle?: SSMLStyleOptions
+  ): Promise<void> {
     if (!text.trim()) {
       this.onPlaybackError('No text provided for playback');
       return;
@@ -768,17 +789,24 @@ export class AudioStreamPlayer {
       finalModelId = DEFAULT_SPEECHIFY_MODEL_ID;
     }
     
+    // If we're using cadence styling, make sure to use simba-turbo model
+    if (ssmlStyle && ssmlStyle.cadence && finalModelId !== 'simba-turbo') {
+      console.log('[AudioPlayer] Cadence styling requested, switching to simba-turbo model');
+      finalModelId = 'simba-turbo';
+    }
+    
     console.log(`[AudioPlayer] Using model ID: ${finalModelId} for provider: ${TTS_PROVIDER}`);
     
     // Store current text and voice information
     this.currentText = text;
     this.currentVoiceId = voiceId;
     this.currentModelId = finalModelId;
+    this.currentSSMLStyle = ssmlStyle || null;
     
     // For very short texts, we can still use non-streaming as it's faster
     if (text.length < 200) {
       console.log('[AudioPlayer] Text length very short, using non-streaming approach');
-      await this.playTextNonStreaming(text, voiceId, finalModelId);
+      await this.playTextNonStreaming(text, voiceId, finalModelId, ssmlStyle);
       return;
     }
     
@@ -788,6 +816,7 @@ export class AudioStreamPlayer {
         textLength: text.length, 
         voiceId, 
         modelId: finalModelId,
+        ssmlStyle: ssmlStyle ? 'Yes' : 'No',
         provider: TTS_PROVIDER
       });
       
@@ -865,6 +894,46 @@ export class AudioStreamPlayer {
       console.error('[AudioPlayer] Error playing text:', error);
       this.onPlaybackError(`Error playing audio: ${error}`);
       this.stopPlayback();
+    }
+  }
+  
+  /**
+   * Play audio from a URL (for speech marks integration)
+   */
+  public async playWithUrl(url: string): Promise<void> {
+    try {
+      console.log('[AudioPlayer] Playing audio from URL:', url);
+      
+      // Create a new Audio element for this URL
+      this.audioElement = new Audio(url);
+      
+      // Set up event listeners
+      this.audioElement.onended = () => {
+        console.log('[AudioPlayer] URL playback ended');
+        URL.revokeObjectURL(url); // Clean up
+        this.onPlaybackEnd();
+      };
+      
+      this.audioElement.ontimeupdate = () => {
+        if (this.audioElement.duration) {
+          this.onTimeUpdate(this.audioElement.currentTime, this.audioElement.duration);
+        }
+      };
+      
+      this.audioElement.onerror = (event) => {
+        console.error('[AudioPlayer] URL playback error:', event);
+        URL.revokeObjectURL(url); // Clean up
+        this.onPlaybackError('Error during URL playback');
+      };
+      
+      // Start playback
+      await this.audioElement.play();
+      console.log('[AudioPlayer] URL playback started');
+      this.onPlaybackStart();
+      
+    } catch (error) {
+      console.error('[AudioPlayer] Error playing from URL:', error);
+      this.onPlaybackError(`Error playing from URL: ${error}`);
     }
   }
   
@@ -1017,6 +1086,24 @@ export class AudioStreamPlayer {
     
     if (this.speechifyAudioElement) {
       this.speechifyAudioElement.playbackRate = speed;
+    }
+  }
+  
+  /**
+   * Seek to a specific position in the audio (in seconds)
+   */
+  public seek(timeInSeconds: number): void {
+    console.log('[AudioPlayer] Seeking to', timeInSeconds, 'seconds');
+    
+    // For Speechify direct audio
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.currentTime = timeInSeconds;
+      return;
+    }
+    
+    // For regular audio
+    if (this.audioElement) {
+      this.audioElement.currentTime = timeInSeconds;
     }
   }
 }

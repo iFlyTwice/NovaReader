@@ -1,0 +1,391 @@
+
+/* Voice Styler Styles */
+/* Define opening animation keyframes */
+@keyframes voiceStylerAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.9);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 6px 20px rgba(0, 0, 0, 0.4),
+                0 2px 3px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
+                0 0 0 2px rgba(255, 255, 255, 0.05),
+                0 8px 25px rgba(0, 0, 0, 0.6),
+                0 2px 5px rgba(0, 0, 0, 0.5);
+  }
+}
+
+#extension-voice-styler {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #1c1c1c;
+  border-radius: 16px;
+  padding: 16px 14px; /* Reduced right padding */
+  display: flex;
+  flex-direction: column;
+  /* Enhanced shadow effect with multiple layers */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(255, 255, 255, 0.05),
+              0 8px 25px rgba(0, 0, 0, 0.6),
+              0 2px 5px rgba(0, 0, 0, 0.5);
+  z-index: 9997; /* Just below the player */
+  border: 1px solid #2a2b31;
+  width: 300px; /* Reduced from 320px for better proportions */
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: right 0.3s ease-in-out, box-shadow 0.3s ease; /* Smooth transition for position and shadow changes */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  /* Position relative to the player - increased distance */
+  right: 120px; /* Increased from 100px to give more width on the left */
+  
+  /* Animation for appearance */
+  animation: voiceStylerAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+#extension-voice-styler::-webkit-scrollbar {
+  display: none;
+}
+
+/* When panel is open, the player moves to right: 370px, so voice styler should adjust */
+#extension-voice-styler.panel-open {
+  right: 470px; /* Increased from 450px to match the increased distance in normal state */
+  /* Adjust shadow direction when positioned next to panel */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(255, 255, 255, 0.05),
+              -8px 0 25px rgba(0, 0, 0, 0.6),
+              0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Light theme for panel-open state */
+@media (prefers-color-scheme: light) {
+  #extension-voice-styler.panel-open {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15),
+                0 0 0 2px rgba(0, 0, 0, 0.02),
+                -8px 0 25px rgba(0, 0, 0, 0.2),
+                0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Define inner content animation keyframes */
+@keyframes voiceItemsAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Voice selector styles that we're reusing */
+.voice-selector-top-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 12px 8px 12px;
+  text-align: center;
+  position: relative;
+  animation: voiceItemsAppear 0.3s 0.1s ease-out forwards;
+  opacity: 0;
+}
+
+.voice-selector-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #333;
+  text-align: center;
+  position: relative;
+  flex-wrap: wrap;
+  animation: voiceItemsAppear 0.3s 0.15s ease-out forwards;
+  opacity: 0;
+}
+
+.voice-selector-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.voice-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0; /* Removed padding on the right */
+  animation: voiceItemsAppear 0.3s 0.25s ease-out forwards;
+  opacity: 0;
+}
+
+/* Hide scrollbars for voice-selector-list inside voice styler */
+#extension-voice-styler .voice-selector-list {
+  /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
+  /* Hide scrollbar for IE and Edge */
+  -ms-overflow-style: none;
+}
+
+#extension-voice-styler .voice-selector-list::-webkit-scrollbar {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  display: none;
+}
+
+/* Define animation for voice options to stagger their appearance */
+@keyframes voiceOptionAppear {
+  0% {
+    opacity: 0;
+    transform: translateX(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.voice-option {
+  display: flex;
+  flex-direction: column;
+  padding: 12px; /* Equal padding on all sides */
+  border-radius: 8px;
+  background-color: #2a2a2a;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  text-align: center; /* Center the text */
+  margin: 0 auto; /* Center the option horizontally */
+  width: 90%; /* Slightly narrower than full width to create space on both sides */
+  border-left: 3px solid transparent; /* Transparent border for consistent sizing with active state */
+  min-height: 24px; /* Set minimum height to prevent UI shifts */
+  overflow: hidden; /* Hide any overflowing content */
+  animation: voiceOptionAppear 0.3s ease-out backwards;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  justify-content: center;
+  align-items: center;
+}
+
+/* Apply staggered animation delay to voice options */
+.voice-option:nth-child(1) { animation-delay: 0.3s; }
+.voice-option:nth-child(2) { animation-delay: 0.35s; }
+.voice-option:nth-child(3) { animation-delay: 0.4s; }
+.voice-option:nth-child(4) { animation-delay: 0.45s; }
+.voice-option:nth-child(5) { animation-delay: 0.5s; }
+.voice-option:nth-child(6) { animation-delay: 0.55s; }
+.voice-option:nth-child(7) { animation-delay: 0.6s; }
+.voice-option:nth-child(8) { animation-delay: 0.65s; }
+.voice-option:nth-child(9) { animation-delay: 0.7s; }
+.voice-option:nth-child(10) { animation-delay: 0.75s; }
+
+.voice-option:hover {
+  background-color: #333;
+}
+
+.voice-option.active {
+  background-color: #27272a; /* Zinc-800 - dark zinc color to match other components */
+  border-left: 3px solid #5664d2; /* Add a highlight on the left side */
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Checkmark indicator for active voice */
+.voice-option.active::after {
+  content: '✓';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #5664d2;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.voice-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 4px;
+  /* Add text truncation for long names */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-right: 20px; /* Add padding to the right to offset the checkmark space */
+}
+
+.voice-selector-save-button {
+  background-color: #5664d2; /* Primary brand color */
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  animation: voiceItemsAppear 0.3s 0.35s ease-out forwards;
+  opacity: 0;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin: 0 auto; /* Center the button horizontally */
+  width: 90%; /* Match the width of the voice options */
+}
+
+.voice-selector-save-button:hover {
+  background-color: #4a57b9; /* Slightly darker on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+}
+
+.voice-selector-save-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Styler-specific styles */
+.styler-section {
+  margin-bottom: 16px;
+  animation: voiceItemsAppear 0.3s 0.2s ease-out forwards;
+  opacity: 0;
+}
+
+.styler-section:nth-child(3) {
+  animation-delay: 0.25s;
+}
+
+.styler-section h3 {
+  margin: 0 auto 12px auto;
+  font-size: 15px;
+  color: #ccc;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 13px;
+  width: 90%; /* Match the width of the voice options */
+  text-align: center;
+}
+
+.styler-info-note {
+  font-size: 12px;
+  color: #aaa;
+  margin: 16px auto 0 auto;
+  padding: 8px;
+  background-color: #27272a;
+  border-radius: 8px;
+  border-left: 3px solid #5664d2;
+  animation: voiceItemsAppear 0.3s 0.3s ease-out forwards;
+  opacity: 0;
+  width: 90%; /* Match the width of the voice options */
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+  @keyframes voiceStylerAppearLight {
+    0% {
+      opacity: 0;
+      transform: translateY(-50%) scale(0.9);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1),
+                  0 0 0 1px rgba(0, 0, 0, 0.01),
+                  0 6px 20px rgba(0, 0, 0, 0.15),
+                  0 2px 3px rgba(0, 0, 0, 0.1);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15),
+                  0 0 0 2px rgba(0, 0, 0, 0.02),
+                  0 8px 25px rgba(0, 0, 0, 0.2),
+                  0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  #extension-voice-styler {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    /* Softer shadow for light theme */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15),
+                0 0 0 2px rgba(0, 0, 0, 0.02),
+                0 8px 25px rgba(0, 0, 0, 0.2),
+                0 2px 5px rgba(0, 0, 0, 0.1);
+    /* Use light theme specific animation */
+    animation: voiceStylerAppearLight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  
+  .voice-selector-top-header {
+    color: #333;
+  }
+  
+  .voice-selector-header {
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .voice-selector-title {
+    color: #333;
+  }
+  
+  .voice-option {
+    background-color: #e8e8e8;
+  }
+  
+  .voice-option:hover {
+    background-color: #dedede;
+  }
+  
+  .voice-option.active {
+    background-color: #5664d2;
+    border-left-color: #333;
+  }
+  
+  .voice-option.active::after {
+    color: #fff; /* White checkmark for better visibility on colored background */
+  }
+  
+  .voice-name {
+    color: #333;
+  }
+  
+  .voice-option.active .voice-name {
+    color: #fff;
+  }
+  
+  .voice-selector-save-button {
+    background-color: #5664d2;
+    color: white;
+  }
+  
+  .voice-selector-save-button:hover {
+    background-color: #4a57b9;
+  }
+  
+  .styler-section h3 {
+    color: #555;
+  }
+  
+  .styler-info-note {
+    color: #666;
+    background-color: #f0f0f0;
+    border-left: 3px solid #5664d2;
+  }
+}

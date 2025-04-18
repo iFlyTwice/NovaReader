@@ -8,7 +8,8 @@ import { ICONS } from '../utils';
 import '../../../css/player.css';
 // Import audio player for streaming
 import { AudioStreamPlayer } from '../audioPlayer';
-// Sentence highlighter removed
+// Import voice styler
+import voiceStyler from '../voiceStyler';
 
 // Import utility functions
 import { 
@@ -27,8 +28,17 @@ import {
   updateTimeDisplay
 } from './handlers/playbackHandlers';
 
-// Import the inline text highlighter
+// Import the text highlighters
+import { TextHighlighter } from './handlers/textHighlighter';
 import { InlineTextHighlighter } from './handlers/inlineTextHighlighter';
+
+// Import types from speechify API
+import { 
+  synthesizeWithSpeechMarks, 
+  streamTextToSpeech, 
+  SSMLStyleOptions,
+  NestedChunk 
+} from '../speechifyApi';
 
 export class SidePlayer {
   // Make these public for the event handlers to access
@@ -46,7 +56,10 @@ export class SidePlayer {
   
   // Text highlighting functionality
   private textHighlighter: InlineTextHighlighter;
-  private highlightingEnabled: boolean = false;
+  private highlightingEnabled: boolean = true; // Default to enabled
+  
+  // SSML styling - can be modified through settings
+  private ssmlStyle: SSMLStyleOptions | null = null;
   
   // Default voice settings - use proper Speechify voice ID
   private defaultVoiceId: string = 'en-US-Neural2-F'; // Speechify female voice
@@ -75,7 +88,42 @@ export class SidePlayer {
     // Set up listener to ensure player is visible before playback
     this.setupEnsurePlayerVisibleListener();
     
+    // Set up voice style change listener
+    this.setupVoiceStyleListener();
+    
     console.log('📱 [Player] Initialized and ready');
+  }
+  
+  /**
+   * Set up voice style change listener
+   */
+  private setupVoiceStyleListener(): void {
+    // Listen for voice style changes from the VoiceStyler component
+    document.addEventListener('voice-style-change', (event: any) => {
+      const { emotion, cadence } = event.detail;
+      
+      // Create SSML style object based on selected options
+      let newStyle: SSMLStyleOptions | null = null;
+      
+      if (emotion || cadence) {
+        newStyle = {};
+        if (emotion) newStyle.emotion = emotion;
+        if (cadence) newStyle.cadence = cadence;
+      }
+      
+      // Update the SSML style
+      this.setSSMLStyle(newStyle);
+      
+      console.log('[SidePlayer] Voice style updated from styler:', { emotion, cadence });
+    });
+  }
+  
+  /**
+   * Set SSML style options
+   */
+  public setSSMLStyle(style: SSMLStyleOptions | null): void {
+    this.ssmlStyle = style;
+    console.log('[SidePlayer] SSML style updated:', style);
   }
   
   /**
@@ -88,12 +136,7 @@ export class SidePlayer {
       // Initialize the highlighter with the current text
       this.textHighlighter.initialize(this.currentText);
       
-      // Generate mock speech marks for testing
-      // In a real implementation, you would get these from your TTS service
-      const speechMarks = InlineTextHighlighter.generateMockSpeechMarks(this.currentText);
-      this.textHighlighter.setSpeechMarks(speechMarks);
-      
-      // Start highlighting if we're currently playing
+      // If we're playing, start highlighting
       if (this.isPlaying) {
         this.textHighlighter.startHighlighting();
       }
@@ -109,7 +152,32 @@ export class SidePlayer {
     console.log('[SidePlayer] Text highlighting toggled:', this.highlightingEnabled);
   }
   
-  // New method to ensure player is visible before playback
+  /**
+   * Setup text highlighting with speech marks
+   */
+  public setupHighlighting(text: string, speechMarks: NestedChunk): void {
+    if (!this.highlightingEnabled) return;
+    
+    // Initialize the highlighter with text
+    this.textHighlighter.initialize(text);
+    
+    // Process any SSML in the text if needed
+    if (text.includes('<') || text.includes('&')) {
+      this.textHighlighter.processSsmlText(text);
+    }
+    
+    // Set the speech marks and start highlighting
+    this.textHighlighter.setSpeechMarks(speechMarks);
+    
+    // Start highlighting if currently playing
+    if (this.isPlaying) {
+      this.textHighlighter.startHighlighting();
+    }
+    
+    console.log('[SidePlayer] Text highlighting setup completed');
+  }
+  
+  // Method to ensure player is visible before playback
   private setupEnsurePlayerVisibleListener(): void {
     document.addEventListener('ensure-player-visible', (event: any) => {
       const { text } = event.detail;
@@ -152,7 +220,7 @@ export class SidePlayer {
     }
   }
   
-  // New method specifically for pause events
+  // Method for pause events
   private handlePlaybackPause(): void {
     this.isPlaying = false;
     this.isPaused = true;
@@ -171,8 +239,6 @@ export class SidePlayer {
   private updateTimeDisplay(currentTime: number, duration: number): void {
     // Update the time display in the player UI
     updateTimeDisplay(this.timeDisplay, currentTime, duration);
-    
-    // Sentence highlighting removed
   }
 
   public create(nextToPanel: boolean = false): void {
@@ -237,21 +303,31 @@ export class SidePlayer {
     });
     this.playButton = playButton;
     
-    // Highlighting button (new!)
+    // Highlighting button
     const highlightButton = createButton(ICONS.highlight || '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zM3 4h2v16H3V4z"></path></svg>', 'Toggle Highlighting', () => {
       console.log('[SidePlayer] Highlight button clicked');
       this.toggleHighlighting();
       addClickEffect(highlightButton);
     });
     
-    // Screenshot button
-    const screenshotButton = createButton(ICONS.screenshot, 'Screenshot', () => {
-      console.log('Screenshot clicked');
+    // Set initial highlight button state based on this.highlightingEnabled
+    if (this.highlightingEnabled) {
+      highlightButton.classList.add('active');
+    }
+    
+    // Style button
+    const styleButton = createButton('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>', 'Voice Style', () => {
+      console.log('[SidePlayer] Style button clicked, toggling voice styler');
+      
+      // Toggle the voice styler component
+      const event = new CustomEvent('toggle-voice-styler');
+      document.dispatchEvent(event);
+      
       // Add visual feedback
-      addClickEffect(screenshotButton);
+      addClickEffect(styleButton);
     });
     
-    // Select Voice button with microphone icon that transforms to X
+    // Voice selection button
     const selectVoiceButton = createButton(ICONS.microphone, 'Select Voice', () => {
       console.log('Select Voice clicked');
       
@@ -350,8 +426,8 @@ export class SidePlayer {
     player.appendChild(timeDisplay);
     player.appendChild(playButton);
     player.appendChild(dividerAfterPlay); // Add divider after play button
-    player.appendChild(highlightButton); // Add highlight button
-    player.appendChild(screenshotButton);
+    player.appendChild(highlightButton);
+    player.appendChild(styleButton); // Add new style button
     player.appendChild(selectVoiceButton);
     player.appendChild(settingsButton);
     player.appendChild(divider1);
@@ -361,6 +437,7 @@ export class SidePlayer {
     document.body.appendChild(player);
     this.playerElement = player;
   }
+
 
   public toggle(isPanelOpen: boolean = false): void {
     if (document.getElementById(this.playerId)) {
@@ -376,6 +453,12 @@ export class SidePlayer {
       player.remove();
       this.playerElement = null;
     }
+    
+    // Hide voice styler if open
+    const voiceStylerElement = document.getElementById('extension-voice-styler');
+    if (voiceStylerElement) {
+      voiceStyler.hide();
+    }
   }
   
   public setPositionNextToPanel(nextToPanel: boolean): void {
@@ -389,7 +472,9 @@ export class SidePlayer {
     }
   }
   
-  // Method to handle text playback
+  /**
+   * Method to handle text playback with enhanced SSML and speech marks
+   */
   public async startPlayback(text: string): Promise<void> {
     if (!text.trim()) {
       console.warn('No text provided for playback');
@@ -404,85 +489,67 @@ export class SidePlayer {
     
     this.currentText = text;
     
-    // Initialize text highlighter if highlighting is enabled
-    if (this.highlightingEnabled) {
-      this.textHighlighter.initialize(text);
-      
-      // Generate speech marks (mock for now)
-      // In a real implementation, you would get these from your TTS API
-      const speechMarks = InlineTextHighlighter.generateMockSpeechMarks(text);
-      this.textHighlighter.setSpeechMarks(speechMarks);
-    }
-    
     try {
       // First, get the selected voice from storage (or use default if not found)
       const voiceId = await getSelectedVoice(this.defaultVoiceId);
-      const modelId = this.defaultModelId;
+      let modelId = this.defaultModelId;
+      
+      // Use simba-turbo model if any SSML styling is specified
+      if (this.ssmlStyle && (this.ssmlStyle.cadence || this.ssmlStyle.emotion)) {
+        modelId = 'simba-turbo';
+        console.log('[SidePlayer] Using simba-turbo model for voice styling support');
+      }
       
       console.log('[SidePlayer] Starting playback with:', { 
         textLength: text.length, 
         voiceId, 
-        modelId 
+        modelId,
+        ssmlStyle: this.ssmlStyle 
       });
       
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
       
-      // Try playback with the audioPlayer
-      try {
-        await this.audioPlayer.playText(text, voiceId, modelId);
-      } catch (audioPlayerError) {
-        // If the AudioStreamPlayer fails, try the alternate approach
-        console.warn('[SidePlayer] AudioStreamPlayer failed, trying fallback approach:', audioPlayerError);
-        
-        // Import necessary functions directly
-        const { textToSpeech } = await import('../speechifyApi');
-        
-        // Get the audio data directly
-        const audioData = await textToSpeech(text, voiceId, modelId);
-        
-        if (!audioData) {
-          throw new Error('Failed to get audio data from textToSpeech');
-        }
-        
-        // Create blob from audio data
-        const blob = new Blob([audioData], { type: 'audio/mpeg' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create audio element
-        const audio = new Audio(url);
-        
-        // Set up audio events
-        audio.onended = () => {
-          console.log('[SidePlayer] Fallback playback completed');
-          URL.revokeObjectURL(url); // Clean up
-          this.handlePlaybackEnd();
-        };
-        
-        audio.ontimeupdate = () => {
-          if (audio.duration) {
-            this.updateTimeDisplay(audio.currentTime, audio.duration);
+      // If highlighting is enabled, use synthesizeWithSpeechMarks
+      if (this.highlightingEnabled) {
+        try {
+          // Get both audio and speech marks in one call
+          const result = await synthesizeWithSpeechMarks({
+            text,
+            voiceId,
+            modelId,
+            ssmlStyle: this.ssmlStyle || undefined,
+            returnSpeechMarks: true
+          });
+          
+          if (result.audio && result.speechMarks) {
+            // Set up highlighting with the speech marks
+            this.setupHighlighting(text, result.speechMarks);
+            
+            // Create a blob URL for the audio
+            const blob = new Blob([result.audio], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            
+            // Play the audio
+            await this.audioPlayer.playWithUrl(url);
+          } else {
+            throw new Error('Failed to get both audio and speech marks');
           }
-        };
-        
-        audio.onerror = (event) => {
-          console.error('[SidePlayer] Fallback audio playback error:', event);
-          URL.revokeObjectURL(url); // Clean up
-          this.handlePlaybackError('Error during fallback audio playback');
-        };
-        
-        // Start playback
-        await audio.play();
-        console.log('[SidePlayer] Fallback audio playback started');
-        this.handlePlaybackStart();
+        } catch (syncError) {
+          console.warn('[SidePlayer] Error with synthesizeWithSpeechMarks:', syncError);
+          
+          // Fall back to regular streaming
+          await this.audioPlayer.playText(text, voiceId, modelId, this.ssmlStyle || undefined);
+        }
+      } else {
+        // Standard playback without highlighting
+        await this.audioPlayer.playText(text, voiceId, modelId, this.ssmlStyle || undefined);
       }
     } catch (error) {
       console.error('[SidePlayer] Error starting playback:', error);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
     }
   }
-  
-  // Sentence highlighter functionality removed
   
   public stopPlayback(): void {
     this.audioPlayer.stopPlayback();
@@ -570,7 +637,10 @@ export class SidePlayer {
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
       
-      // Sentence highlighting functionality removed
+      // Start highlighting again if enabled
+      if (this.highlightingEnabled) {
+        this.textHighlighter.startHighlighting();
+      }
       
       // Resume playback
       await this.audioPlayer.resumePlayback();

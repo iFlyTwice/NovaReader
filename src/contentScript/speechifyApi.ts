@@ -9,6 +9,36 @@ export interface Voice {
   accent: string;
 }
 
+// Speech marks interfaces
+export interface Chunk {
+  start_time: number;  // Time in milliseconds when this chunk starts in the audio
+  end_time: number;    // Time in milliseconds when this chunk ends in the audio
+  start: number;       // Character index where this chunk starts in the original text
+  end: number;         // Character index where this chunk ends in the original text
+  value: string;       // The text content of this chunk
+}
+
+export interface NestedChunk extends Chunk {
+  chunks: Chunk[];     // Array of word-level chunks within this sentence/paragraph
+}
+
+// SSML styling options
+export interface SSMLStyleOptions {
+  emotion?: 'angry' | 'cheerful' | 'sad' | 'terrified' | 'relaxed' | 
+            'fearful' | 'surprised' | 'calm' | 'assertive' | 'energetic' | 
+            'warm' | 'direct' | 'bright';
+  cadence?: 'slow' | 'medium' | 'fast' | string; // string for percentage values like '+20%'
+}
+
+// Parameters for TTS requests
+export interface TTSParams {
+  text: string;
+  voiceId: string;
+  modelId?: string;
+  ssmlStyle?: SSMLStyleOptions;
+  returnSpeechMarks?: boolean;
+}
+
 // Interface for token response
 interface TokenResponse {
   access_token: string;
@@ -166,6 +196,49 @@ export const getApiKeyFromStorage = async (): Promise<string> => {
   });
 };
 
+// Helper function to escape text for SSML
+export const escapeSSML = (text: string): string => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+};
+
+// Helper function to wrap text in SSML tags
+export const wrapWithSSML = (text: string, options?: SSMLStyleOptions): string => {
+  // If text already starts with <speak>, assume it's already SSML formatted
+  if (text.trim().startsWith('<speak>')) {
+    return text;
+  }
+  
+  // Escape the text for SSML
+  const escapedText = escapeSSML(text);
+  
+  let wrappedText = '';
+  
+  // Apply styling if options are provided
+  if (options && (options.emotion || options.cadence)) {
+    let styleTag = '<speechify:style';
+    
+    if (options.emotion) {
+      styleTag += ` emotion="${options.emotion}"`;
+    }
+    
+    if (options.cadence) {
+      styleTag += ` cadence="${options.cadence}"`;
+    }
+    
+    styleTag += '>';
+    wrappedText = `<speak>${styleTag}${escapedText}</speechify:style></speak>`;
+  } else {
+    wrappedText = `<speak>${escapedText}</speak>`;
+  }
+  
+  return wrappedText;
+};
+
 // Fetch available voices from Speechify API
 export const fetchVoices = async (): Promise<Voice[]> => {
   try {
@@ -244,7 +317,12 @@ const getVoiceSample = async (voiceId: string): Promise<string> => {
 
 // Convert text to speech using Speechify API - for voice samples
 // This approach uses a direct conversion to ArrayBuffer
-export const textToSpeech = async (text: string, voiceId: string, modelId: string = 'simba-english'): Promise<ArrayBuffer | null> => {
+export const textToSpeech = async (
+  text: string, 
+  voiceId: string, 
+  modelId: string = 'simba-english',
+  ssmlStyle?: SSMLStyleOptions
+): Promise<ArrayBuffer | null> => {
   try {
     // For testing only - return dummy audio data if we're in a test environment
     if (process.env.NODE_ENV === 'test') {
@@ -254,10 +332,15 @@ export const textToSpeech = async (text: string, voiceId: string, modelId: strin
     
     const token = await TokenManager.getToken();
 
+    // Check if we need to process SSML styling
+    const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
+                        (text.startsWith('<speak>') ? text : wrapWithSSML(text));
+    
     console.log('[SpeechifyAPI] Making TTS request with:', {
-      text: text.substring(0, 20) + '...',
+      text: processedText.substring(0, 20) + '...',
       voiceId,
-      modelId
+      modelId,
+      hasSSMLStyle: !!ssmlStyle
     });
 
     // For testing with placeholder voice IDs, use a sample voice
@@ -292,9 +375,10 @@ export const textToSpeech = async (text: string, voiceId: string, modelId: strin
         'Accept': 'audio/mpeg',
       },
       body: JSON.stringify({
-        input: text,
+        input: processedText,
         voice_id: voiceId,
-        model: modelId
+        model: modelId,
+        ssml: true
       }),
     });
 
@@ -336,16 +420,89 @@ export const textToSpeech = async (text: string, voiceId: string, modelId: strin
   }
 };
 
+// Enhanced API function that can return both audio and speech marks
+export const synthesizeWithSpeechMarks = async (
+  params: TTSParams
+): Promise<{ audio: ArrayBuffer | null, speechMarks?: NestedChunk }> => {
+  try {
+    const { text, voiceId, modelId = 'simba-english', ssmlStyle, returnSpeechMarks = true } = params;
+    
+    // Process text with SSML if needed
+    const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
+                        (text.startsWith('<speak>') ? text : wrapWithSSML(text));
+    
+    const token = await TokenManager.getToken();
+    
+    console.log('[SpeechifyAPI] Making synthesis request with speech marks:', {
+      textLength: processedText.length,
+      voiceId,
+      modelId,
+      hasSSMLStyle: !!ssmlStyle,
+      returnSpeechMarks
+    });
+    
+    // Make the API request
+    const response = await fetch('https://api.sws.speechify.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: processedText,
+        voice_id: voiceId,
+        model: modelId,
+        ssml: true,
+        return_speech_marks: returnSpeechMarks
+      }),
+    });
+    
+    if (!response.ok) {
+      console.error(`[SpeechifyAPI] Synthesis error: ${response.status} ${response.statusText}`);
+      return { audio: null };
+    }
+    
+    const data = await response.json();
+    
+    // Extract audio data
+    let audio: ArrayBuffer | null = null;
+    if (data.audio || data.audio_data) {
+      const audioBase64 = data.audio || data.audio_data;
+      const binaryString = atob(audioBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      audio = bytes.buffer;
+    }
+    
+    // Extract speech marks if available
+    let speechMarks: NestedChunk | undefined;
+    if (data.speech_marks) {
+      speechMarks = data.speech_marks as NestedChunk;
+      console.log('[SpeechifyAPI] Received speech marks:', 
+        speechMarks.chunks ? speechMarks.chunks.length : 'No chunks');
+    }
+    
+    return { audio, speechMarks };
+  } catch (error) {
+    console.error('[SpeechifyAPI] Error with synthesis and speech marks:', error);
+    return { audio: null };
+  }
+};
+
 // Stream text to speech using the stream endpoint
 export const streamTextToSpeech = async (
   text: string, 
   voiceId: string, 
-  modelId: string = 'simba-english'
+  modelId: string = 'simba-english',
+  ssmlStyle?: SSMLStyleOptions
 ): Promise<ReadableStream<Uint8Array> | null> => {
   try {
     console.log('[SpeechifyAPI] Starting TTS stream request');
     console.log('[SpeechifyAPI] Text length:', text.length);
     console.log('[SpeechifyAPI] Voice ID:', voiceId);
+    console.log('[SpeechifyAPI] SSML Style:', ssmlStyle ? 'Yes' : 'No');
     
     if (!voiceId || voiceId === 'undefined') {
       console.error('[SpeechifyAPI] Invalid voice ID provided');
@@ -357,6 +514,10 @@ export const streamTextToSpeech = async (
     // For testing with placeholder voice IDs, use a default voice
     // Use a standard Speechify voice ID if a placeholder is provided
     const actualVoiceId = voiceId.includes('speechify-voice') ? 'en-US-Neural2-F' : voiceId;
+    
+    // Process text with SSML if needed
+    const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
+                        (text.startsWith('<speak>') ? text : wrapWithSSML(text));
     
     // Two options:
     // 1. Direct streaming approach using the stream endpoint
@@ -370,9 +531,10 @@ export const streamTextToSpeech = async (
           'Accept': 'audio/mpeg',
         },
         body: JSON.stringify({
-          input: text,
+          input: processedText,
           voice_id: actualVoiceId,
-          model: modelId
+          model: modelId,
+          ssml: true
         }),
       });
       
@@ -414,9 +576,10 @@ export const streamTextToSpeech = async (
         
         // Send proper JSON data
         xhr.send(JSON.stringify({
-          input: text,
+          input: processedText,
           voice_id: actualVoiceId,
-          model: modelId
+          model: modelId,
+          ssml: true
         }));
       });
       

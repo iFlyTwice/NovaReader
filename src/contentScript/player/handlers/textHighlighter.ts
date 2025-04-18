@@ -1,5 +1,6 @@
 // Text Highlighter for synchronizing text with audio playback
 import { AudioStreamPlayer } from '../../audioPlayer';
+import { createStringTracker, StringTracker } from 'string-tracker'; // Import StringTracker
 
 // Define interfaces for speech marks data
 interface Chunk {
@@ -15,7 +16,9 @@ interface NestedChunk extends Chunk {
 }
 
 export class TextHighlighter {
-  private text: string;
+  private originalText: string;
+  private displayText: string;
+  private stringTracker: StringTracker | null = null;
   private speechMarks: NestedChunk | null = null;
   private audioPlayer: AudioStreamPlayer;
   private container: HTMLElement | null = null;
@@ -27,15 +30,20 @@ export class TextHighlighter {
   
   constructor(audioPlayer: AudioStreamPlayer) {
     this.audioPlayer = audioPlayer;
-    this.text = '';
+    this.originalText = '';
+    this.displayText = '';
   }
   
   /**
    * Initialize the text highlighter with text and container
    */
   public initialize(text: string, container: HTMLElement): void {
-    this.text = text;
+    this.originalText = text;
+    this.displayText = text;
     this.container = container;
+    
+    // Initialize the StringTracker with the original text
+    this.stringTracker = createStringTracker(text);
     
     // Create highlight container if it doesn't exist
     if (!this.highlightContainer) {
@@ -98,7 +106,7 @@ export class TextHighlighter {
    * Render the text with span elements for each word
    */
   private renderText(): void {
-    if (!this.highlightContainer || !this.speechMarks) return;
+    if (!this.highlightContainer || !this.speechMarks || !this.stringTracker) return;
     
     // Clear existing content
     this.highlightContainer.innerHTML = '';
@@ -106,7 +114,7 @@ export class TextHighlighter {
     // Check if we have word-level chunks
     if (!this.speechMarks.chunks || this.speechMarks.chunks.length === 0) {
       // If no chunks, just display the plain text
-      this.highlightContainer.textContent = this.text;
+      this.highlightContainer.textContent = this.displayText;
       return;
     }
     
@@ -119,19 +127,27 @@ export class TextHighlighter {
     // Add spans for each chunk with data attributes for highlighting
     let lastEnd = 0;
     for (const chunk of sortedChunks) {
+      // Important: Use stringTracker to map from original (SSML) indices to display indices
+      // This handles any differences between the original text and display text
+      const mappedStart = this.stringTracker.getIndexOnModified(chunk.start);
+      const mappedEnd = this.stringTracker.getIndexOnModified(chunk.end);
+      
       // Add any text between chunks
-      if (chunk.start > lastEnd) {
-        const betweenText = document.createTextNode(this.text.substring(lastEnd, chunk.start));
+      if (mappedStart > lastEnd) {
+        const betweenText = document.createTextNode(this.displayText.substring(lastEnd, mappedStart));
         fragment.appendChild(betweenText);
       }
       
       // Create span for this chunk
       const span = document.createElement('span');
-      span.textContent = chunk.value;
+      // Use the display text, not the chunk.value (which might have SSML escaping)
+      span.textContent = this.displayText.substring(mappedStart, mappedEnd);
       span.dataset.startTime = chunk.start_time.toString();
       span.dataset.endTime = chunk.end_time.toString();
       span.dataset.textStart = chunk.start.toString();
       span.dataset.textEnd = chunk.end.toString();
+      span.dataset.mappedStart = mappedStart.toString();
+      span.dataset.mappedEnd = mappedEnd.toString();
       span.className = 'highlightable-word';
       span.style.transition = 'background-color 0.15s ease';
       span.style.borderRadius = '2px';
@@ -141,12 +157,12 @@ export class TextHighlighter {
       span.addEventListener('click', () => this.handleWordClick(chunk));
       
       fragment.appendChild(span);
-      lastEnd = chunk.end;
+      lastEnd = mappedEnd;
     }
     
     // Add any remaining text
-    if (lastEnd < this.text.length) {
-      const remainingText = document.createTextNode(this.text.substring(lastEnd));
+    if (lastEnd < this.displayText.length) {
+      const remainingText = document.createTextNode(this.displayText.substring(lastEnd));
       fragment.appendChild(remainingText);
     }
     
@@ -162,10 +178,9 @@ export class TextHighlighter {
   private handleWordClick(chunk: Chunk): void {
     console.log('[TextHighlighter] Word clicked, seeking to', chunk.start_time, 'ms');
     
-    // TODO: Implement seeking functionality in AudioStreamPlayer
-    // For now, just log the action
-    // In a real implementation, you would call something like:
-    // this.audioPlayer.seekTo(chunk.start_time);
+    // Implement seeking functionality
+    const seekTimeSeconds = chunk.start_time / 1000;
+    this.audioPlayer.seek(seekTimeSeconds);
   }
   
   /**
@@ -228,29 +243,82 @@ export class TextHighlighter {
   }
   
   /**
+   * Find the correct chunk for the current time, handling gaps properly
+   */
+  private findChunkAtTime(currentTimeMs: number): Chunk | null {
+    if (!this.speechMarks || !this.speechMarks.chunks) return null;
+    
+    // Sort chunks by start_time for binary search
+    const sortedChunks = [...this.speechMarks.chunks].sort((a, b) => a.start_time - b.start_time);
+    
+    // Handle the case before any text is spoken
+    if (currentTimeMs < sortedChunks[0].start_time) {
+      return null;
+    }
+    
+    // Find the last chunk that starts before or at the current time
+    let chunk = null;
+    for (const c of sortedChunks) {
+      if (c.start_time <= currentTimeMs) {
+        chunk = c;
+        // Don't break, we want the last chunk that starts before currentTimeMs
+      } else {
+        break; // Stop once we've gone past currentTimeMs
+      }
+    }
+    
+    // If we found a chunk, check if the current time is still within its duration
+    if (chunk && currentTimeMs <= chunk.end_time) {
+      return chunk;
+    }
+    
+    // Handle gaps between chunks by finding the next chunk
+    if (chunk) {
+      const currentIndex = sortedChunks.indexOf(chunk);
+      if (currentIndex < sortedChunks.length - 1) {
+        const nextChunk = sortedChunks[currentIndex + 1];
+        // If we're in the gap between chunks, but closer to the next chunk
+        if (nextChunk.start_time - currentTimeMs < currentTimeMs - chunk.end_time) {
+          return nextChunk;
+        }
+      }
+    }
+    
+    return chunk;
+  }
+  
+  /**
    * Highlight the word at the current playback time
    */
   private highlightCurrentWord(currentTimeMs: number): void {
-    if (!this.highlightContainer || !this.speechMarks || !this.speechMarks.chunks) return;
+    if (!this.highlightContainer || !this.speechMarks || !this.stringTracker) return;
     
     // Clear existing highlights
     this.clearHighlights();
     
-    // Find the current word based on time
-    const currentWord = this.speechMarks.chunks.find(chunk => 
-      currentTimeMs >= chunk.start_time && currentTimeMs <= chunk.end_time
-    );
+    // Find the current word based on time, handling gaps
+    const currentWord = this.findChunkAtTime(currentTimeMs);
     
     if (currentWord) {
+      // Map the original index to the display index using StringTracker
+      const mappedStart = this.stringTracker.getIndexOnModified(currentWord.start);
+      const mappedEnd = this.stringTracker.getIndexOnModified(currentWord.end);
+      
       // Find the span for this word
       const wordSpan = this.highlightContainer.querySelector(
-        `span[data-text-start="${currentWord.start}"][data-text-end="${currentWord.end}"]`
+        `span[data-mapped-start="${mappedStart}"][data-mapped-end="${mappedEnd}"]`
       );
       
       if (wordSpan) {
         // Apply highlight
-        wordSpan.style.backgroundColor = '#ffc107';
-        wordSpan.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        (wordSpan as HTMLElement).style.backgroundColor = '#ffc107';
+        
+        // Scroll into view with smooth behavior
+        wordSpan.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center', 
+          inline: 'center' 
+        });
       }
     }
   }
@@ -269,41 +337,55 @@ export class TextHighlighter {
   }
   
   /**
-   * Mock function to generate speech marks for testing
-   * In a real implementation, these would come from the TTS service
+   * Process SSML text to handle special characters and XML tags
+   * This should be used when text contains SSML markup
    */
-  public static generateMockSpeechMarks(text: string): NestedChunk {
-    const words = text.split(/\s+/);
-    const chunks: Chunk[] = [];
+  public processSsmlText(ssmlText: string): void {
+    if (!this.stringTracker) {
+      this.stringTracker = createStringTracker(this.originalText);
+    }
     
-    let startIndex = 0;
-    let startTime = 0;
+    // Create a temporary DOM element to parse the SSML (XML)
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<root>${ssmlText}</root>`, 'text/xml');
     
-    words.forEach((word, index) => {
-      const start = text.indexOf(word, startIndex);
-      const end = start + word.length;
-      const wordDuration = word.length * 80; // Roughly 80ms per character
+    // Extract text content, removing tags but preserving whitespace
+    const textContent = doc.documentElement.textContent || '';
+    
+    // Update the display text
+    this.displayText = textContent;
+    
+    // Create a new string tracker to map between original SSML and display text
+    this.stringTracker = createStringTracker(ssmlText);
+    
+    // Add operations to transform SSML to plain text
+    // This is a simplified example - you'd need to handle all SSML tags appropriately
+    
+    // Replace all entity references
+    const entityRegex = /&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});/g;
+    let match;
+    let offset = 0;
+    
+    // Create a temporary div to decode entities
+    const div = document.createElement('div');
+    
+    while ((match = entityRegex.exec(ssmlText)) !== null) {
+      // Get the entity's decoded value
+      div.innerHTML = match[0];
+      const decoded = div.textContent || '';
       
-      chunks.push({
-        start,
-        end,
-        start_time: startTime,
-        end_time: startTime + wordDuration,
-        value: word
-      });
+      // Remove the entity and add the decoded character
+      let tracker = this.stringTracker.remove(match.index - offset, match.index - offset + match[0].length);
+      tracker = tracker.add(match.index - offset, decoded);
+      this.stringTracker = tracker;
       
-      // Update for next iteration
-      startIndex = end;
-      startTime += wordDuration + 50; // Add 50ms gap between words
-    });
+      // Adjust offset based on the difference in length
+      offset += (match[0].length - decoded.length);
+    }
     
-    return {
-      start: 0,
-      end: text.length,
-      start_time: 0,
-      end_time: startTime,
-      value: text,
-      chunks
-    };
+    // Update display text using the tracker
+    this.displayText = this.stringTracker.get();
+    
+    console.log('[TextHighlighter] Processed SSML text');
   }
 }

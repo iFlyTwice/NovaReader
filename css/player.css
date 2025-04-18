@@ -68,6 +68,12 @@
   color: black; /* Black icon when active */
 }
 
+/* Special styling for the voice selector button when active */
+.player-button[title="Select Voice"].active {
+  background-color: white; /* White background when active */
+  color: black; /* Black icon when active */
+}
+
 /* Add visible background to all player buttons from the start */
 .player-button {
   width: 40px;
@@ -230,6 +236,12 @@
   
   /* Special styling for the highlighting button when active in light theme */
   .player-button[title="Toggle Highlighting"].active {
+    background-color: white; /* White background when active */
+    color: black; /* Black icon when active */
+  }
+  
+  /* Special styling for the voice selector button when active in light theme */
+  .player-button[title="Select Voice"].active {
     background-color: white; /* White background when active */
     color: black; /* Black icon when active */
   }

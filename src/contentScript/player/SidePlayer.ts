@@ -50,6 +50,7 @@ export class SidePlayer {
   private playerElement: HTMLElement | null = null;
   private playButton: HTMLElement | null = null;
   private highlightButton: HTMLElement | null = null;
+  private selectVoiceButton: HTMLElement | null = null;
   private timeDisplay: HTMLElement | null = null;
   
   // Audio streaming player
@@ -92,7 +93,30 @@ export class SidePlayer {
     // Set up voice style change listener
     this.setupVoiceStyleListener();
     
+    // Set up observer to detect when voice selector is closed
+    this.setupVoiceSelectorObserver();
+    
     console.log('📱 [Player] Initialized and ready');
+  }
+  
+  /**
+   * Set up observer to detect when voice selector is closed
+   */
+  private setupVoiceSelectorObserver(): void {
+    // Create a MutationObserver to watch for when the voice selector is removed from the DOM
+    const observer = new MutationObserver((mutations) => {
+      // Check if the voice selector exists
+      const voiceSelector = document.getElementById('extension-voice-selector');
+      
+      // If the voice selector doesn't exist and the button has the active class, remove it
+      if (!voiceSelector && this.selectVoiceButton && this.selectVoiceButton.classList.contains('active')) {
+        console.log('[SidePlayer] Voice selector closed, removing active class from button');
+        this.selectVoiceButton.classList.remove('active');
+      }
+    });
+    
+    // Start observing the document body for changes to its children
+    observer.observe(document.body, { childList: true, subtree: true });
   }
   
   /**
@@ -353,11 +377,13 @@ export class SidePlayer {
         setTimeout(() => {
           selectVoiceButton.innerHTML = ICONS.microphone;
           selectVoiceButton.setAttribute('data-state', 'closed');
+          selectVoiceButton.classList.remove('active'); // Remove active class when closed
         }, 150);
       } else {
         // Voice selector is closed and will be opened, change to X
         selectVoiceButton.innerHTML = ICONS.close;
         selectVoiceButton.setAttribute('data-state', 'open');
+        selectVoiceButton.classList.add('active'); // Add active class when opened
       }
       
       // Add animation class
@@ -378,6 +404,9 @@ export class SidePlayer {
     
     // Set initial state attribute
     selectVoiceButton.setAttribute('data-state', 'closed');
+    
+    // Store reference to voice selector button
+    this.selectVoiceButton = selectVoiceButton;
     
     // Settings button that toggles between settings icon and X
     const settingsButton = createButton(ICONS.settings, 'Settings', () => {
@@ -471,6 +500,11 @@ export class SidePlayer {
     const voiceStylerElement = document.getElementById('extension-voice-styler');
     if (voiceStylerElement) {
       voiceStyler.hide();
+    }
+    
+    // Ensure the voice selector button's active class is removed
+    if (this.selectVoiceButton && this.selectVoiceButton.classList.contains('active')) {
+      this.selectVoiceButton.classList.remove('active');
     }
   }
   

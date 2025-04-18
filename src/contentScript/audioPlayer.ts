@@ -1,6 +1,6 @@
 // Audio player implementation for streaming TTS content
 import { streamTextToSpeech, textToSpeech } from './speechifyApi';
-import { TTS_PROVIDER, DEFAULT_MODEL_ID, DEFAULT_SPEECHIFY_MODEL_ID } from '../config';
+import { TTS_PROVIDER, DEFAULT_SPEECHIFY_MODEL_ID } from '../config';
 
 // Maximum time to wait for streaming setup in milliseconds (15 seconds)
 const STREAMING_TIMEOUT = 15000;
@@ -24,6 +24,9 @@ export class AudioStreamPlayer {
   
   // Streaming setup timeout
   private streamingSetupTimeout: number | null = null;
+  
+  // For Speechify direct audio playback
+  private speechifyAudioElement: HTMLAudioElement | null = null;
   
   // Callbacks for state updates
   private onPlaybackStart: () => void = () => {};
@@ -119,25 +122,38 @@ export class AudioStreamPlayer {
         }
         
         // Create source buffer when MediaSource is open
-        this.sourceBuffer = this.mediaSource.addSourceBuffer(this.codec);
-        console.log('[AudioPlayer] Source buffer created successfully');
-        
-        // Handle buffer updates
-        this.sourceBuffer.addEventListener('updateend', () => {
-          this.isAppending = false;
-          this.processAppendQueue();
-        });
-        
-        // Handle buffer errors
-        this.sourceBuffer.addEventListener('error', (e) => {
-          console.error('[AudioPlayer] Source buffer error:', e);
-          this.onPlaybackError('Source buffer error occurred');
-        });
-        
-        // Handle buffer abort
-        this.sourceBuffer.addEventListener('abort', () => {
-          console.warn('[AudioPlayer] Source buffer operation aborted');
-        });
+        try {
+          this.sourceBuffer = this.mediaSource.addSourceBuffer(this.codec);
+          console.log('[AudioPlayer] Source buffer created successfully');
+          
+          // Handle buffer updates
+          this.sourceBuffer.addEventListener('updateend', () => {
+            this.isAppending = false;
+            this.processAppendQueue();
+          });
+          
+          // Handle buffer errors
+          this.sourceBuffer.addEventListener('error', (e) => {
+            console.error('[AudioPlayer] Source buffer error:', e);
+            this.onPlaybackError('Source buffer error occurred');
+          });
+          
+          // Handle buffer abort
+          this.sourceBuffer.addEventListener('abort', () => {
+            console.warn('[AudioPlayer] Source buffer operation aborted');
+          });
+        } catch (sourceBufferError) {
+          console.error('[AudioPlayer] Error creating source buffer:', sourceBufferError);
+          
+          // For Speechify, use the direct audio approach
+          if (TTS_PROVIDER === 'speechify') {
+            console.log('[AudioPlayer] Falling back to direct audio approach for Speechify');
+            this.useSpeechifyDirectAudio();
+            return;
+          }
+          
+          throw sourceBufferError;
+        }
         
         // Immediately fetch and process the stream after the source buffer is created
         this.fetchAndProcessStream();
@@ -146,6 +162,137 @@ export class AudioStreamPlayer {
         this.onPlaybackError(`Error setting up audio player: ${error}`);
       }
     });
+  }
+  
+  // Special handling for Speechify direct audio
+  private useSpeechifyDirectAudio(): void {
+    if (TTS_PROVIDER !== 'speechify') return;
+    
+    console.log('[AudioPlayer] Using direct audio element approach for Speechify');
+    
+    // We'll fetch the audio directly and play it with a separate Audio element
+    this.fetchAndProcessDirectAudio();
+  }
+  
+  // Fetch and process direct audio instead of streaming
+  private async fetchAndProcessDirectAudio(): Promise<void> {
+    try {
+      console.log('[AudioPlayer] Starting direct audio approach for Speechify');
+      
+      // Before we begin, clear any existing audio URL to avoid using stale data
+      if (typeof window !== 'undefined') {
+        (window as any).__speechifyAudioUrl = null;
+      }
+      
+      // Allow a little time for any previous calls to finish
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Make the streaming call to the Speechify API to get the audio URL
+      await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
+      
+      // Add a small delay to ensure the audioUrl is set by the API
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Check if the speechify audio URL was stored by our API
+      const audioUrl = typeof window !== 'undefined' ? (window as any).__speechifyAudioUrl : null;
+      
+      // If there's no audio URL, make a direct call rather than failing
+      if (!audioUrl) {
+        console.warn('[AudioPlayer] No audio URL found in global variable, falling back to direct call');
+        
+        // Import the direct TTS function
+        const { textToSpeech } = await import('./speechifyApi');
+        
+        // Get the audio data directly
+        const audioData = await textToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
+        
+        if (!audioData) {
+          throw new Error('Failed to get audio data from direct TTS call');
+        }
+        
+        // Create a blob and URL from the audio data
+        const blob = new Blob([audioData], { type: 'audio/mpeg' });
+        const directUrl = URL.createObjectURL(blob);
+        
+        // Create and play the audio
+        this.speechifyAudioElement = new Audio(directUrl);
+        
+        // Set up the same event listeners as below
+        this.speechifyAudioElement.onended = () => {
+          console.log('[AudioPlayer] Direct audio playback ended');
+          if (directUrl) {
+            URL.revokeObjectURL(directUrl);
+          }
+          this.onPlaybackEnd();
+        };
+        
+        this.speechifyAudioElement.ontimeupdate = () => {
+          if (this.speechifyAudioElement && this.speechifyAudioElement.duration) {
+            this.onTimeUpdate(
+              this.speechifyAudioElement.currentTime, 
+              this.speechifyAudioElement.duration
+            );
+          }
+        };
+        
+        this.speechifyAudioElement.onerror = (event) => {
+          console.error('[AudioPlayer] Direct audio playback error:', event);
+          if (directUrl) {
+            URL.revokeObjectURL(directUrl);
+          }
+          this.onPlaybackError('Error during direct audio playback');
+        };
+        
+        // Start playback
+        await this.speechifyAudioElement.play();
+        console.log('[AudioPlayer] Direct audio playback started via fallback method');
+        this.onPlaybackStart();
+        
+        return;
+      }
+      
+      console.log('[AudioPlayer] Using direct audio URL:', audioUrl);
+      
+      // Create a new audio element for direct playback
+      this.speechifyAudioElement = new Audio(audioUrl);
+      
+      // Set up event listeners
+      this.speechifyAudioElement.onended = () => {
+        console.log('[AudioPlayer] Direct audio playback ended');
+        // Clean up URL
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+        this.onPlaybackEnd();
+      };
+      
+      this.speechifyAudioElement.ontimeupdate = () => {
+        if (this.speechifyAudioElement && this.speechifyAudioElement.duration) {
+          this.onTimeUpdate(
+            this.speechifyAudioElement.currentTime, 
+            this.speechifyAudioElement.duration
+          );
+        }
+      };
+      
+      this.speechifyAudioElement.onerror = (event) => {
+        console.error('[AudioPlayer] Direct audio playback error:', event);
+        // Clean up URL
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+        this.onPlaybackError('Error during direct audio playback');
+      };
+      
+      // Start playback
+      await this.speechifyAudioElement.play();
+      console.log('[AudioPlayer] Direct audio playback started');
+      this.onPlaybackStart();
+      
+    } catch (error) {
+      console.error('[AudioPlayer] Error with direct audio approach:', error);
+      this.onPlaybackError(`Error with direct audio: ${error}`);
+    }
   }
   
   // New method to fetch and process the stream
@@ -159,6 +306,12 @@ export class AudioStreamPlayer {
     try {
       console.log('[AudioPlayer] Starting to fetch stream with voice ID:', this.currentVoiceId);
       
+      // For Speechify, check if we should use the direct audio approach
+      if (TTS_PROVIDER === 'speechify') {
+        // Signal that we want to use direct audio
+        (window as any).__useSpeechifyDirectAudio = true;
+      }
+      
       // Get stream from TTS API
       const stream = await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
       
@@ -169,6 +322,14 @@ export class AudioStreamPlayer {
       
       // We got a stream successfully, clear the timeout since we don't need it anymore
       this.clearStreamingTimeout();
+      
+      // For Speechify, check if we need to use direct audio
+      if (TTS_PROVIDER === 'speechify' && (window as any).__useSpeechifyDirectAudio) {
+        console.log('[AudioPlayer] Using Speechify direct audio instead of stream processing');
+        // The direct audio approach will be handled separately
+        (window as any).__useSpeechifyDirectAudio = false;
+        return;
+      }
       
       console.log('[AudioPlayer] Stream received, beginning to process chunks');
       // Process the stream
@@ -189,6 +350,14 @@ export class AudioStreamPlayer {
       }
     } catch (error) {
       console.error('[AudioPlayer] Error processing stream:', error);
+      
+      // For Speechify, try the direct audio approach as fallback
+      if (TTS_PROVIDER === 'speechify') {
+        console.log('[AudioPlayer] Falling back to direct audio approach for Speechify');
+        this.useSpeechifyDirectAudio();
+        return;
+      }
+      
       this.onPlaybackError(`Error playing audio: ${error}`);
       this.stopPlayback();
     }
@@ -262,6 +431,13 @@ export class AudioStreamPlayer {
         console.error('[AudioPlayer] Audio element has empty src attribute');
       }
       
+      // For Speechify, try direct audio approach if we get an error
+      if (TTS_PROVIDER === 'speechify') {
+        console.log('[AudioPlayer] Audio element error for Speechify, trying direct approach');
+        this.useSpeechifyDirectAudio();
+        return;
+      }
+      
       this.onPlaybackError(`Audio playback error: ${errorMessage}`);
     });
     
@@ -303,6 +479,14 @@ export class AudioStreamPlayer {
           try {
             this.sourceBuffer.appendBuffer(chunk);
           } catch (appendError) {
+            // For Speechify, if we get an error, try direct audio
+            if (TTS_PROVIDER === 'speechify') {
+              console.log('[AudioPlayer] Source buffer error for Speechify, trying direct approach');
+              this.useSpeechifyDirectAudio();
+              this.isAppending = false;
+              return;
+            }
+            
             if ((appendError as any).name === 'QuotaExceededError') {
               // Buffer is full, we need to remove more data
               this.bufferFullErrorCount++;
@@ -463,6 +647,16 @@ export class AudioStreamPlayer {
       this.audioElement.src = '';
     }
     
+    // Also clean up speechify direct audio if it exists
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.pause();
+      if (this.speechifyAudioElement.src && this.speechifyAudioElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.speechifyAudioElement.src);
+      }
+      this.speechifyAudioElement.src = '';
+      this.speechifyAudioElement = null;
+    }
+    
     this.streamingCompleted = true;
   }
   
@@ -476,9 +670,8 @@ export class AudioStreamPlayer {
       return;
     }
     
-    // Use the appropriate model ID based on the TTS provider
-    const defaultModel = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
-    const finalModelId = modelId || defaultModel;
+    // Use the Speechify model ID
+    const finalModelId = modelId || DEFAULT_SPEECHIFY_MODEL_ID;
     
     try {
       console.log('[AudioPlayer] Starting non-streaming playback with:', { 
@@ -534,6 +727,14 @@ export class AudioStreamPlayer {
       
     } catch (error) {
       console.error('[AudioPlayer] Error playing text (non-streaming):', error);
+      
+      // For Speechify, try the direct audio approach
+      if (TTS_PROVIDER === 'speechify') {
+        console.log('[AudioPlayer] Error with non-streaming, trying direct approach for Speechify');
+        this.useSpeechifyDirectAudio();
+        return;
+      }
+      
       this.onPlaybackError(`Error playing audio: ${(error as any).message}`);
       this.onPlaybackEnd();
     }
@@ -552,9 +753,22 @@ export class AudioStreamPlayer {
       return;
     }
     
-    // Use the appropriate model ID based on the TTS provider
-    const defaultModel = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
-    const finalModelId = modelId || defaultModel;
+    // Use the Speechify model ID
+    // If model ID contains 'eleven_', override it with Speechify model
+    let finalModelId = modelId;
+    
+    // Check if we need to override the model ID
+    if (modelId && modelId.startsWith('eleven_')) {
+      console.log(`[AudioPlayer] Overriding ElevenLabs model ID ${modelId} with default Speechify model: ${DEFAULT_SPEECHIFY_MODEL_ID}`);
+      finalModelId = DEFAULT_SPEECHIFY_MODEL_ID;
+    }
+    
+    // If no model ID is provided, use the default Speechify model
+    if (!finalModelId) {
+      finalModelId = DEFAULT_SPEECHIFY_MODEL_ID;
+    }
+    
+    console.log(`[AudioPlayer] Using model ID: ${finalModelId} for provider: ${TTS_PROVIDER}`);
     
     // Store current text and voice information
     this.currentText = text;
@@ -576,6 +790,13 @@ export class AudioStreamPlayer {
         modelId: finalModelId,
         provider: TTS_PROVIDER
       });
+      
+      // For Speechify, check if we should use direct audio approach
+      if (TTS_PROVIDER === 'speechify') {
+        console.log('[AudioPlayer] Using direct audio approach for Speechify');
+        this.useSpeechifyDirectAudio();
+        return;
+      }
       
       // Reset state
       this.isStopped = false;
@@ -629,6 +850,14 @@ export class AudioStreamPlayer {
       } catch (playError) {
         console.error('[AudioPlayer] Error starting audio playback:', playError);
         this.clearStreamingTimeout();
+        
+        // For Speechify, try direct audio approach
+        if (TTS_PROVIDER === 'speechify') {
+          console.log('[AudioPlayer] Error starting playback, trying direct approach for Speechify');
+          this.useSpeechifyDirectAudio();
+          return;
+        }
+        
         throw new Error(`Audio playback error: ${(playError as any).message}`);
       }
       
@@ -656,6 +885,13 @@ export class AudioStreamPlayer {
         // Only clean up and use fallback if streaming didn't start at all
         this.clearBuffer();
         
+        // For Speechify, try direct audio approach
+        if (TTS_PROVIDER === 'speechify') {
+          console.log('[AudioPlayer] Streaming timeout, trying direct approach for Speechify');
+          this.useSpeechifyDirectAudio();
+          return;
+        }
+        
         // Here we would typically fall back to non-streaming, but per request we'll just show an error
         this.onPlaybackError('Streaming timeout: Failed to start streaming playback');
       } else {
@@ -682,12 +918,16 @@ export class AudioStreamPlayer {
   public pausePlayback(): void {
     console.log('🔊 [Audio] Pausing playback');
     
-    // Just pause the audio element without clearing anything
+    // Pause the main audio element
     if (this.audioElement) {
       this.audioElement.pause();
       console.log('🔊 [Audio] Paused successfully');
-    } else {
-      console.warn('🔊 [Audio] ⚠️ No audio element to pause');
+    }
+    
+    // Also pause the speechify direct audio element if it exists
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.pause();
+      console.log('🔊 [Audio] Paused speechify direct audio');
     }
     
     // Use dedicated pause callback instead of the end callback
@@ -703,6 +943,15 @@ export class AudioStreamPlayer {
       try {
         console.log('[AudioPlayer] Resuming playback');
         
+        // For Speechify direct audio
+        if (this.speechifyAudioElement) {
+          await this.speechifyAudioElement.play();
+          this.onPlaybackStart();
+          resolve();
+          return;
+        }
+        
+        // For regular audio
         if (this.audioElement) {
           // Just play the audio element from its current position
           await this.audioElement.play();
@@ -745,6 +994,16 @@ export class AudioStreamPlayer {
       }
     }
     
+    // Also clean up speechify direct audio if it exists
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.pause();
+      if (this.speechifyAudioElement.src && this.speechifyAudioElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.speechifyAudioElement.src);
+      }
+      this.speechifyAudioElement.src = '';
+      this.speechifyAudioElement = null;
+    }
+    
     this.onPlaybackEnd();
   }
   
@@ -752,6 +1011,12 @@ export class AudioStreamPlayer {
    * Set playback speed
    */
   public setPlaybackSpeed(speed: number): void {
-    this.audioElement.playbackRate = speed;
+    if (this.audioElement) {
+      this.audioElement.playbackRate = speed;
+    }
+    
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.playbackRate = speed;
+    }
   }
 }

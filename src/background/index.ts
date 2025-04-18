@@ -1,6 +1,4 @@
 import { 
-  ELEVENLABS_API_KEY, 
-  DEFAULT_VOICE_ID,
   SPEECHIFY_API_KEY,
   DEFAULT_SPEECHIFY_VOICE_ID,
   TTS_PROVIDER
@@ -12,32 +10,23 @@ console.log('Background script is running');
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('Extension installed or updated:', details.reason);
   
-  // Check for API keys based on selected provider
-  if (TTS_PROVIDER === 'elevenlabs') {
-    if (!ELEVENLABS_API_KEY) {
-      console.error('ERROR: No ElevenLabs API key found in config! The extension will not work properly.');
-    } else {
-      console.log('ElevenLabs API key found in config, length:', ELEVENLABS_API_KEY.length);
-    }
-  } else if (TTS_PROVIDER === 'speechify') {
-    if (!SPEECHIFY_API_KEY) {
-      console.error('ERROR: No Speechify API key found in config! The extension will not work properly.');
-    } else {
-      console.log('Speechify API key found in config, length:', SPEECHIFY_API_KEY.length);
-    }
+  // Check for Speechify API key
+  if (!SPEECHIFY_API_KEY) {
+    console.error('ERROR: No Speechify API key found in config! The extension will not work properly.');
+  } else {
+    console.log('Speechify API key found in config, length:', SPEECHIFY_API_KEY.length);
   }
   
   // Save API keys and settings to storage immediately
   chrome.storage.local.set({ 
-    apiKey: ELEVENLABS_API_KEY, // Always save ElevenLabs API key to apiKey
-    speechifyApiKey: SPEECHIFY_API_KEY, // Always save Speechify API key to speechifyApiKey
-    selectedVoiceId: TTS_PROVIDER === 'elevenlabs' ? DEFAULT_VOICE_ID : DEFAULT_SPEECHIFY_VOICE_ID,
+    speechifyApiKey: SPEECHIFY_API_KEY, // Save Speechify API key
+    selectedVoiceId: DEFAULT_SPEECHIFY_VOICE_ID,
     ttsProvider: TTS_PROVIDER
   }, () => {
     if (chrome.runtime.lastError) {
       console.error('Error saving API key to storage:', chrome.runtime.lastError);
     } else {
-      console.log(`API key and default voice for ${TTS_PROVIDER} saved to storage successfully`);
+      console.log(`API key and default voice saved to storage successfully`);
     }
   });
   

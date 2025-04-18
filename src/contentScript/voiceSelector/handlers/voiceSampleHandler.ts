@@ -1,6 +1,6 @@
 // Import the ICONS object
 import { ICONS } from '../../utils';
-import { TTS_PROVIDER, DEFAULT_MODEL_ID, DEFAULT_SPEECHIFY_MODEL_ID } from '../../../config';
+import { DEFAULT_SPEECHIFY_MODEL_ID } from '../../../config';
 
 /**
  * Plays a sample of the selected voice
@@ -21,8 +21,8 @@ export async function playSample(voiceId: string, voiceName: string): Promise<vo
       playButton.classList.add('loading');
     }
     
-    // Use the appropriate model ID based on the TTS provider
-    const modelId = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
+    // Use the Speechify model ID
+    const modelId = DEFAULT_SPEECHIFY_MODEL_ID;
     
     const audioData = await textToSpeech(sampleText, voiceId, modelId);
     

@@ -3,7 +3,7 @@ import { ICONS } from '../utils';
 // Import TTS API
 import { fetchVoices, Voice } from '../speechifyApi';
 // Import voice IDs and provider from config
-import { VOICE_IDS, SPEECHIFY_VOICE_IDS, TTS_PROVIDER } from '../../config';
+import { SPEECHIFY_VOICE_IDS, TTS_PROVIDER } from '../../config';
 // Import helper functions
 import { createVoiceOption } from './utils/voiceOptionCreator';
 import { filterVoices } from './utils/voiceFilters';
@@ -19,19 +19,12 @@ export class VoiceSelector {
   private voices: Voice[] = [];
   
   // Fallback voices with real voice IDs
-  private fallbackVoices: Voice[] = TTS_PROVIDER === 'elevenlabs' 
-    ? [
-        { id: VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
-        { id: VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
-        { id: VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
-        { id: VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
-      ]
-    : [
-        { id: SPEECHIFY_VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
-        { id: SPEECHIFY_VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
-        { id: SPEECHIFY_VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
-        { id: SPEECHIFY_VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
-      ];
+  private fallbackVoices: Voice[] = [
+    { id: SPEECHIFY_VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
+    { id: SPEECHIFY_VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
+    { id: SPEECHIFY_VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
+    { id: SPEECHIFY_VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
+  ];
   
   constructor() {
     // No need to inject styles separately as they're included in manifest

@@ -8,18 +8,12 @@ import { updateHighlightingState, updateSelectionButtonColor, updateTopPlayerVis
 export function setupSettingsHandlers(panel: HTMLElement): void {
   // Delay slightly to ensure the DOM is updated
   setTimeout(() => {
-    // Provider selector
-    const providerSelector = panel.querySelector('#provider-selector') as HTMLSelectElement;
-    
     // API Key settings
-    const elevenLabsApiKeyInput = panel.querySelector('#elevenlabs-api-key-input') as HTMLInputElement;
-    const saveElevenLabsKeyButton = panel.querySelector('#save-elevenlabs-api-key') as HTMLButtonElement;
     const speechifyApiKeyInput = panel.querySelector('#speechify-api-key-input') as HTMLInputElement;
     const saveSpeechifyKeyButton = panel.querySelector('#save-speechify-api-key') as HTMLButtonElement;
     const statusElements = panel.querySelectorAll('.api-key-status') as NodeListOf<HTMLElement>;
     
     // Model selectors
-    const elevenLabsModelSelector = panel.querySelector('#elevenlabs-model-selector') as HTMLSelectElement;
     const speechifyModelSelector = panel.querySelector('#speechify-model-selector') as HTMLSelectElement;
     
     // Playback settings
@@ -37,44 +31,13 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
     
     // Load saved settings if available
     chrome.storage.local.get([
-      'apiKey',
       'speechifyApiKey',
-      'selectedModel',
       'speechifyModel',
       'playbackSpeed',
       'highlightEnabled',
       'selectionButtonColor',
-      'topPlayerEnabled',
-      'ttsProvider'
+      'topPlayerEnabled'
     ], (result) => {
-      // TTS Provider
-      if (result.ttsProvider && providerSelector) {
-        providerSelector.value = result.ttsProvider;
-        
-        // Show/hide provider-specific settings
-        const elevenLabsSettings = panel.querySelectorAll('.elevenlabs-settings') as NodeListOf<HTMLElement>;
-        const speechifySettings = panel.querySelectorAll('.speechify-settings') as NodeListOf<HTMLElement>;
-        
-        if (result.ttsProvider === 'elevenlabs') {
-          elevenLabsSettings.forEach(el => el.style.display = 'block');
-          speechifySettings.forEach(el => el.style.display = 'none');
-        } else {
-          elevenLabsSettings.forEach(el => el.style.display = 'none');
-          speechifySettings.forEach(el => el.style.display = 'block');
-        }
-      }
-      
-      // ElevenLabs API Key
-      if (result.apiKey && elevenLabsApiKeyInput) {
-        elevenLabsApiKeyInput.value = result.apiKey;
-        statusElements.forEach(statusElement => {
-          if (statusElement.closest('.elevenlabs-settings')) {
-            statusElement.textContent = 'API key is set';
-            statusElement.classList.add('success');
-          }
-        });
-      }
-      
       // Speechify API Key
       if (result.speechifyApiKey && speechifyApiKeyInput) {
         speechifyApiKeyInput.value = result.speechifyApiKey;
@@ -84,11 +47,6 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
             statusElement.classList.add('success');
           }
         });
-      }
-      
-      // ElevenLabs Model selector
-      if (result.selectedModel && elevenLabsModelSelector) {
-        elevenLabsModelSelector.value = result.selectedModel;
       }
       
       // Speechify Model selector
@@ -130,57 +88,6 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
       }
     });
     
-    // Provider selector
-    if (providerSelector) {
-      providerSelector.addEventListener('change', () => {
-        const provider = providerSelector.value;
-        chrome.storage.local.set({ ttsProvider: provider }, () => {
-          console.log(`TTS Provider changed to: ${provider}`);
-          
-          // Show/hide provider-specific settings
-          const elevenLabsSettings = panel.querySelectorAll('.elevenlabs-settings') as NodeListOf<HTMLElement>;
-          const speechifySettings = panel.querySelectorAll('.speechify-settings') as NodeListOf<HTMLElement>;
-          
-          if (provider === 'elevenlabs') {
-            elevenLabsSettings.forEach(el => el.style.display = 'block');
-            speechifySettings.forEach(el => el.style.display = 'none');
-          } else {
-            elevenLabsSettings.forEach(el => el.style.display = 'none');
-            speechifySettings.forEach(el => el.style.display = 'block');
-          }
-        });
-      });
-    }
-    
-    // Save ElevenLabs API key
-    if (saveElevenLabsKeyButton && elevenLabsApiKeyInput) {
-      saveElevenLabsKeyButton.addEventListener('click', () => {
-        const apiKey = elevenLabsApiKeyInput.value.trim();
-        
-        if (!apiKey) {
-          statusElements.forEach(statusElement => {
-            if (statusElement.closest('.elevenlabs-settings')) {
-              statusElement.textContent = 'Please enter an API key';
-              statusElement.classList.add('error');
-              statusElement.classList.remove('success');
-            }
-          });
-          return;
-        }
-        
-        // Save API key to storage
-        chrome.storage.local.set({ apiKey }, () => {
-          statusElements.forEach(statusElement => {
-            if (statusElement.closest('.elevenlabs-settings')) {
-              statusElement.textContent = 'API key saved successfully';
-              statusElement.classList.add('success');
-              statusElement.classList.remove('error');
-            }
-          });
-        });
-      });
-    }
-    
     // Save Speechify API key
     if (saveSpeechifyKeyButton && speechifyApiKeyInput) {
       saveSpeechifyKeyButton.addEventListener('click', () => {
@@ -207,14 +114,6 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
             }
           });
         });
-      });
-    }
-    
-    // ElevenLabs Model selector
-    if (elevenLabsModelSelector) {
-      elevenLabsModelSelector.addEventListener('change', () => {
-        const selectedModel = elevenLabsModelSelector.value;
-        chrome.storage.local.set({ selectedModel });
       });
     }
     

@@ -21,7 +21,7 @@ export function updateCurrentVoiceDisplay(voiceName: string, voiceDetails: strin
   
   // Add provider info if available
   if (provider) {
-    detailsSpan.textContent = `${voiceDetails} • ${provider === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'}`;
+    detailsSpan.textContent = `${voiceDetails} • Speechify`;
   } else {
     detailsSpan.textContent = voiceDetails;
   }
@@ -45,7 +45,7 @@ export function loadCurrentVoice(): void {
     'ttsProvider'
   ], (result) => {
     if (result.selectedVoiceId && result.selectedVoiceName) {
-      console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId}) - Provider: ${result.ttsProvider || 'elevenlabs'}`);
+      console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId}) - Provider: ${result.ttsProvider || 'speechify'}`);
       
       // Update the display
       updateCurrentVoiceDisplay(

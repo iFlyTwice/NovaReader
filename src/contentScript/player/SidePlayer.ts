@@ -43,9 +43,9 @@ export class SidePlayer {
   
   // Sentence highlighter functionality removed
   
-  // Default voice settings - would be replaced by user settings in production
-  private defaultVoiceId: string = '21m00Tcm4TlvDq8ikWAM'; // Example: Adam voice
-  private defaultModelId: string = 'eleven_turbo_v2';
+  // Default voice settings - use proper Speechify voice ID
+  private defaultVoiceId: string = 'en-US-Neural2-F'; // Speechify female voice
+  private defaultModelId: string = 'simba-english'; // Speechify model
 
   constructor() {
     // Initialize the audio player
@@ -358,10 +358,54 @@ export class SidePlayer {
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
       
-      // Sentence highlighting functionality removed
-      
-      // Start playback with the audioPlayer
-      await this.audioPlayer.playText(text, voiceId, modelId);
+      // Try playback with the audioPlayer
+      try {
+        await this.audioPlayer.playText(text, voiceId, modelId);
+      } catch (audioPlayerError) {
+        // If the AudioStreamPlayer fails, try the alternate approach
+        console.warn('[SidePlayer] AudioStreamPlayer failed, trying fallback approach:', audioPlayerError);
+        
+        // Import necessary functions directly
+        const { textToSpeech } = await import('../speechifyApi');
+        
+        // Get the audio data directly
+        const audioData = await textToSpeech(text, voiceId, modelId);
+        
+        if (!audioData) {
+          throw new Error('Failed to get audio data from textToSpeech');
+        }
+        
+        // Create blob from audio data
+        const blob = new Blob([audioData], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create audio element
+        const audio = new Audio(url);
+        
+        // Set up audio events
+        audio.onended = () => {
+          console.log('[SidePlayer] Fallback playback completed');
+          URL.revokeObjectURL(url); // Clean up
+          this.handlePlaybackEnd();
+        };
+        
+        audio.ontimeupdate = () => {
+          if (audio.duration) {
+            this.updateTimeDisplay(audio.currentTime, audio.duration);
+          }
+        };
+        
+        audio.onerror = (event) => {
+          console.error('[SidePlayer] Fallback audio playback error:', event);
+          URL.revokeObjectURL(url); // Clean up
+          this.handlePlaybackError('Error during fallback audio playback');
+        };
+        
+        // Start playback
+        await audio.play();
+        console.log('[SidePlayer] Fallback audio playback started');
+        this.handlePlaybackStart();
+      }
     } catch (error) {
       console.error('[SidePlayer] Error starting playback:', error);
       this.handlePlaybackError(`Failed to start playback: ${error}`);

@@ -92,13 +92,13 @@ class ExtensionController {
   // Ensure API key from config is saved to storage
   private ensureApiKeyInStorage(): void {
     import('../config').then(config => {
-      if (config.ELEVENLABS_API_KEY) {
-        chrome.storage.local.get(['apiKey'], (result) => {
-          if (!result.apiKey) {
+      if (config.SPEECHIFY_API_KEY) {
+        chrome.storage.local.get(['speechifyApiKey'], (result) => {
+          if (!result.speechifyApiKey) {
             console.log('Setting API key in storage from config');
             chrome.storage.local.set({ 
-              apiKey: config.ELEVENLABS_API_KEY,
-              selectedVoiceId: config.DEFAULT_VOICE_ID
+              speechifyApiKey: config.SPEECHIFY_API_KEY,
+              selectedVoiceId: config.DEFAULT_SPEECHIFY_VOICE_ID
             });
           } else {
             console.log('API key already exists in storage');

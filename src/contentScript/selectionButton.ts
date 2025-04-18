@@ -259,6 +259,22 @@ export class SelectionButton {
   private handleButtonClick(): void {
     if (!this.selectedText) return;
     
+    // Clear any existing Speechify audio URL to avoid using stale data
+    if (typeof window !== 'undefined') {
+      if ((window as any).__speechifyAudioUrl) {
+        console.log('👆 [Button] Clearing existing Speechify audio URL');
+        try {
+          // If it's a blob URL, revoke it to prevent memory leaks
+          if ((window as any).__speechifyAudioUrl.startsWith('blob:')) {
+            URL.revokeObjectURL((window as any).__speechifyAudioUrl);
+          }
+        } catch (error) {
+          console.warn('👆 [Button] Error revoking URL:', error);
+        }
+        (window as any).__speechifyAudioUrl = null;
+      }
+    }
+    
     // Update button state
     if (this.currentState === 'speaking') {
       // If already speaking, pause playback

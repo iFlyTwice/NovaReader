@@ -57,6 +57,7 @@ export class SidePlayer {
   private highlightButton: HTMLElement | null = null;
   private selectVoiceButton: HTMLElement | null = null;
   private timeDisplay: HTMLElement | null = null;
+  private isCompactMode: boolean = false; // Track compact mode state
   
   // Audio streaming player
   private audioPlayer: AudioStreamPlayer;
@@ -97,7 +98,26 @@ export class SidePlayer {
     // Set up observer to detect when voice selector is closed
     this.setupVoiceSelectorObserver();
     
+    // Import compact mode CSS
+    this.importCompactModeCSS();
+    
     logger.info('Initialized and ready');
+  }
+  
+  /**
+   * Import the compact mode CSS
+   */
+  private importCompactModeCSS(): void {
+    // Check if the CSS is already loaded
+    if (!document.getElementById('compact-mode-css')) {
+      const link = document.createElement('link');
+      link.id = 'compact-mode-css';
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = chrome.runtime.getURL('css/player-compact.css');
+      document.head.appendChild(link);
+      logger.info('Compact mode CSS loaded');
+    }
   }
   
   /**
@@ -275,6 +295,72 @@ export class SidePlayer {
     updateTimeDisplay(this.timeDisplay, currentTime, duration);
   }
 
+  /**
+   * Toggle compact mode
+   */
+  public toggleCompactMode(): void {
+    this.isCompactMode = !this.isCompactMode;
+    
+    const player = document.getElementById(this.playerId);
+    if (player) {
+      if (this.isCompactMode) {
+        player.classList.add('compact-mode');
+      } else {
+        player.classList.remove('compact-mode');
+      }
+    }
+    
+    // Save the compact mode state to storage
+    chrome.storage.local.set({ playerCompactMode: this.isCompactMode }, () => {
+      logger.info(`Compact mode ${this.isCompactMode ? 'enabled' : 'disabled'}`);
+    });
+  }
+  
+  /**
+   * Set compact mode state
+   */
+  public setCompactMode(enabled: boolean): void {
+    if (this.isCompactMode !== enabled) {
+      this.isCompactMode = enabled;
+      
+      const player = document.getElementById(this.playerId);
+      if (player) {
+        if (this.isCompactMode) {
+          player.classList.add('compact-mode');
+        } else {
+          player.classList.remove('compact-mode');
+        }
+      }
+      
+      // Save the compact mode state to storage
+      chrome.storage.local.set({ playerCompactMode: this.isCompactMode }, () => {
+        logger.info(`Compact mode ${this.isCompactMode ? 'enabled' : 'disabled'}`);
+      });
+    }
+  }
+  
+  /**
+   * Load compact mode state from storage
+   */
+  private loadCompactModeState(): void {
+    chrome.storage.local.get(['playerCompactMode'], (result) => {
+      if (result.playerCompactMode !== undefined) {
+        this.isCompactMode = result.playerCompactMode;
+        logger.info(`Loaded compact mode state: ${this.isCompactMode}`);
+        
+        // Apply the state to the player if it exists
+        const player = document.getElementById(this.playerId);
+        if (player) {
+          if (this.isCompactMode) {
+            player.classList.add('compact-mode');
+          } else {
+            player.classList.remove('compact-mode');
+          }
+        }
+      }
+    });
+  }
+
   public create(nextToPanel: boolean = false): void {
     // Check if player already exists
     if (document.getElementById(this.playerId)) {
@@ -289,6 +375,14 @@ export class SidePlayer {
     if (nextToPanel) {
       player.classList.add('next-to-panel');
     }
+    
+    // Apply compact mode if enabled
+    if (this.isCompactMode) {
+      player.classList.add('compact-mode');
+    }
+    
+    // Load compact mode state from storage
+    this.loadCompactModeState();
     
     // Add time display
     const timeDisplay = document.createElement('div');
@@ -452,6 +546,18 @@ export class SidePlayer {
     const divider1 = document.createElement('div');
     divider1.className = 'player-divider';
     
+    // Compact mode toggle button
+    const compactButton = createButton('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>', 'Toggle Compact Mode', () => {
+      this.toggleCompactMode();
+      // Add visual feedback
+      addClickEffect(compactButton);
+    });
+    
+    // Set initial compact button state based on this.isCompactMode
+    if (this.isCompactMode) {
+      compactButton.classList.add('active');
+    }
+    
     // Close button
     const closeButton = createButton(ICONS.close, 'Close', () => {
       this.remove();
@@ -473,6 +579,7 @@ export class SidePlayer {
     player.appendChild(selectVoiceButton);
     player.appendChild(settingsButton);
     player.appendChild(divider1);
+    player.appendChild(compactButton); // Add compact mode button
     player.appendChild(closeButton);
     
     // Add player to page

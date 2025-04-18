@@ -32,6 +32,7 @@ export default defineManifest({
       css: [
         'css/fonts.css', 
         'css/player.css', 
+        'css/player-compact.css',
         'css/panel.css', 
         'css/voiceSelector.css',
         'css/voiceStyler.css',
@@ -53,6 +54,7 @@ export default defineManifest({
         'img/logo-128.png',
         'img/logo.png',
         'css/player.css',
+        'css/player-compact.css',
         'css/panel.css',
         'css/fonts.css',
         'css/voiceSelector.css',

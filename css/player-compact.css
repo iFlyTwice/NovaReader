@@ -1,0 +1,19 @@
+/* Compact mode styles for the side player */
+
+/* Default compact state */
+#extension-side-player.compact-mode {
+  transform: translateY(-50%) scale(0.7);
+  opacity: 0.7;
+  transition: transform 0.3s ease, opacity 0.3s ease, right 0.3s ease-in-out, box-shadow 0.3s ease;
+}
+
+/* Hover state - return to normal size */
+#extension-side-player.compact-mode:hover {
+  transform: translateY(-50%) scale(1);
+  opacity: 1;
+}
+
+/* Position when next to panel in compact mode */
+#extension-side-player.next-to-panel.compact-mode {
+  right: 370px; /* Keep the same position as normal mode */
+}

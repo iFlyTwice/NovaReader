@@ -49,6 +49,7 @@ export class SidePlayer {
   private isPaused: boolean = false;
   private playerElement: HTMLElement | null = null;
   private playButton: HTMLElement | null = null;
+  private highlightButton: HTMLElement | null = null;
   private timeDisplay: HTMLElement | null = null;
   
   // Audio streaming player
@@ -131,6 +132,15 @@ export class SidePlayer {
    */
   public toggleHighlighting(): void {
     this.highlightingEnabled = !this.highlightingEnabled;
+    
+    // Update the highlight button's active class based on the new state
+    if (this.highlightButton) {
+      if (this.highlightingEnabled) {
+        this.highlightButton.classList.add('active');
+      } else {
+        this.highlightButton.classList.remove('active');
+      }
+    }
     
     if (this.highlightingEnabled && this.currentText) {
       // Initialize the highlighter with the current text
@@ -314,6 +324,9 @@ export class SidePlayer {
     if (this.highlightingEnabled) {
       highlightButton.classList.add('active');
     }
+    
+    // Store reference to highlight button
+    this.highlightButton = highlightButton;
     
     // Style button
     const styleButton = createButton('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>', 'Voice Style', () => {

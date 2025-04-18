@@ -62,6 +62,12 @@
   background-color: #27272a; /* Zinc-800 - much darker zinc color */
 }
 
+/* Special styling for the highlighting button when active */
+.player-button[title="Toggle Highlighting"].active {
+  background-color: white; /* White background when active */
+  color: black; /* Black icon when active */
+}
+
 /* Add visible background to all player buttons from the start */
 .player-button {
   width: 40px;
@@ -220,6 +226,12 @@
   
   .player-button {
     color: #333;
+  }
+  
+  /* Special styling for the highlighting button when active in light theme */
+  .player-button[title="Toggle Highlighting"].active {
+    background-color: white; /* White background when active */
+    color: black; /* Black icon when active */
   }
   
   .player-button:hover {

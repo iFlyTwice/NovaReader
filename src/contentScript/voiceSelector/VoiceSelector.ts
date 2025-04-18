@@ -36,14 +36,12 @@ export class VoiceSelector {
   constructor() {
     // No need to inject styles separately as they're included in manifest
     
-    // Use cached voices if available, otherwise load them
+    // Use cached voices if available, otherwise wait for preload to complete
     if (cachedVoices) {
       logger.info(`Using cached voices: ${cachedVoices.length}`);
       this.voices = cachedVoices;
-    } else {
-      // Load voices from TTS API when the class is instantiated
-      this.loadVoices();
     }
+    // Don't load voices here - they will be loaded by preloadVoices() called from ExtensionController
   }
   
   /**
@@ -124,7 +122,7 @@ export class VoiceSelector {
     return button;
   }
   
-  public create(isPanelOpen: boolean = false): void {
+  public async create(isPanelOpen: boolean = false): Promise<void> {
     // Check if selector already exists
     if (document.getElementById(this.selectorId)) {
       return;
@@ -146,9 +144,24 @@ export class VoiceSelector {
     // Log for debugging
     logger.info(`Creating voice selector with panel open: ${isPanelOpen}`);
     
-    // If no voices loaded yet (race condition), use fallback voices
-    if (this.voices.length === 0) {
-      this.voices = [...this.fallbackVoices];
+    // If we have cached voices, use them
+    if (cachedVoices) {
+      this.voices = cachedVoices;
+    } 
+    // If no voices loaded yet, try to load them or use fallback
+    else if (this.voices.length === 0) {
+      // Try to load voices first
+      try {
+        await VoiceSelector.preloadVoices();
+        if (cachedVoices) {
+          this.voices = cachedVoices;
+        } else {
+          this.voices = [...this.fallbackVoices];
+        }
+      } catch (error) {
+        logger.error(`Error loading voices: ${error}`);
+        this.voices = [...this.fallbackVoices];
+      }
     }
     
     // Create a top header with just the title
@@ -278,12 +291,12 @@ export class VoiceSelector {
     loadCurrentVoice();
   }
   
-  public toggle(isPanelOpen: boolean = false): void {
+  public async toggle(isPanelOpen: boolean = false): Promise<void> {
     const selector = document.getElementById(this.selectorId);
     if (selector) {
       this.remove();
     } else {
-      this.create(isPanelOpen);
+      await this.create(isPanelOpen);
     }
   }
   

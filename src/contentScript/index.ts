@@ -51,8 +51,7 @@ class ExtensionController {
     // Ensure API key is set in storage from config
     this.ensureApiKeyInStorage();
     
-    // Set up selection playback listener in player
-    this.player.setupSelectionPlaybackListener();
+    // The selection playback listener is now set up only when needed, not in the constructor
     
     // Listen for selection button state changes
     this.setupSelectionButtonStateListener();
@@ -76,6 +75,9 @@ class ExtensionController {
     // Create the side player immediately
     setTimeout(() => {
       this.player.create();
+      
+      // Set up the selection playback listener after creating the player
+      this.player.setupSelectionPlaybackListener();
       
       // For the top player, wait for the page to be more fully loaded before creating it
       // This prevents the jumping/repositioning issue
@@ -191,7 +193,7 @@ class ExtensionController {
     });
   }
   
-  private toggleVoiceSelector(): void {
+  private async toggleVoiceSelector(): Promise<void> {
     // If voice selector is already open, just remove it
     if (this.isVoiceSelectorOpen) {
       this.voiceSelector.remove();
@@ -212,8 +214,8 @@ class ExtensionController {
       this.isVoiceStylerOpen = false;
     }
     
-    // Create voice selector
-    this.voiceSelector.create(this.isPanelOpen);
+    // Create voice selector (now async)
+    await this.voiceSelector.create(this.isPanelOpen);
     this.isVoiceSelectorOpen = true;
     
     logger.info(`Voice selector created. Panel open: ${this.isPanelOpen}`);
@@ -510,6 +512,11 @@ class ExtensionController {
   
   private togglePlayer(): void {
     this.player.toggle(this.isPanelOpen);
+    
+    // Set up the selection playback listener when the player is created
+    if (document.getElementById('extension-side-player')) {
+      this.player.setupSelectionPlaybackListener();
+    }
   }
   
   private toggleTopPlayer(): void {

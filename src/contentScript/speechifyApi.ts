@@ -131,6 +131,9 @@ class TokenManager {
     }, refreshDelay);
   }
   
+  // Token request promise to prevent duplicate requests
+  private static tokenRequestPromise: Promise<string> | null = null;
+  
   // Get a valid access token, refreshing if necessary
   public static async getToken(forceRefresh = false): Promise<string> {
     const now = Date.now();
@@ -140,24 +143,39 @@ class TokenManager {
       return this.token;
     }
     
-    try {
-      // Request a new token
-      const tokenData = await this.requestNewToken();
-      
-      // Store the token and calculate expiration time
-      this.token = tokenData.access_token;
-      this.expirationTime = now + (tokenData.expires_in * 1000);
-      
-      // Schedule a refresh
-      this.scheduleTokenRefresh(tokenData.expires_in);
-      
-      tokenLogger.info(`New access token acquired, expires in ${tokenData.expires_in} seconds`);
-      
-      return this.token;
-    } catch (error) {
-      tokenLogger.error(`Error getting access token: ${error}`);
-      throw error;
+    // If there's already a token request in progress, return that promise
+    // This prevents multiple simultaneous token requests
+    if (this.tokenRequestPromise) {
+      tokenLogger.info('Token request already in progress, reusing existing request');
+      return this.tokenRequestPromise;
     }
+    
+    // Create a new token request promise
+    this.tokenRequestPromise = (async () => {
+      try {
+        // Request a new token
+        const tokenData = await this.requestNewToken();
+        
+        // Store the token and calculate expiration time
+        this.token = tokenData.access_token;
+        this.expirationTime = now + (tokenData.expires_in * 1000);
+        
+        // Schedule a refresh
+        this.scheduleTokenRefresh(tokenData.expires_in);
+        
+        tokenLogger.info(`New access token acquired, expires in ${tokenData.expires_in} seconds`);
+        
+        return this.token;
+      } catch (error) {
+        tokenLogger.error(`Error getting access token: ${error}`);
+        throw error;
+      } finally {
+        // Clear the promise reference after completion (success or failure)
+        this.tokenRequestPromise = null;
+      }
+    })();
+    
+    return this.tokenRequestPromise;
   }
   
   // Clear the token (useful for logout)

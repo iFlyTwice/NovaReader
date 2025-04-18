@@ -88,10 +88,6 @@ export class SidePlayer {
       onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
     });
     
-    // Immediately set up the selection playback listener
-    // to ensure we don't miss any events
-    this.setupSelectionPlaybackListener();
-    
     // Set up listener to ensure player is visible before playback
     this.setupEnsurePlayerVisibleListener();
     

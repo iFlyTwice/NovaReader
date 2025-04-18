@@ -91,9 +91,6 @@ export class TopPlayer {
       onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
     });
     
-    // Extract page text for the "Listen to This Page" feature
-    extractPageText(this);
-    
     // Set up listener for voice selection changes
     this.setupVoiceSelectionListener();
     
@@ -207,15 +204,20 @@ export class TopPlayer {
     });
     
     // Extract page text after a short delay to ensure the DOM is settled
+    // Only if we don't already have paragraphs
     setTimeout(() => {
-      logger.info('Extracting page text');
-      extractPageText(this);
-      
-      // If no paragraphs were found, try again with a different approach
       if (this.paragraphs.length === 0) {
-        logger.debug('Using fallback extraction method');
-        // Use a simpler but more aggressive extraction method
-        fallbackTextExtraction(this);
+        logger.info('Extracting page text');
+        extractPageText(this);
+        
+        // If no paragraphs were found, try again with a different approach
+        if (this.paragraphs.length === 0) {
+          logger.debug('Using fallback extraction method');
+          // Use a simpler but more aggressive extraction method
+          fallbackTextExtraction(this);
+        }
+      } else {
+        logger.info('Already have paragraphs, skipping extraction');
       }
     }, 1000);
     

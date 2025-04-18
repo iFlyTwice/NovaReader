@@ -12,7 +12,7 @@ export class SentenceHighlighter {
   
   // Configuration
   private config = {
-    highlightColor: '#ffd280',  // Amber color for sentence highlighting (similar to Speechify)
+    highlightColor: '#d4d4d8',  // Lighter zinc color (zinc-200) for sentence highlighting
     transitionSpeed: '0.3s',    // Slightly slower for smoother transitions
   };
   

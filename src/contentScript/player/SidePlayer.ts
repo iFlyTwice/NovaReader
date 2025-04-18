@@ -27,6 +27,9 @@ import {
   updateTimeDisplay
 } from './handlers/playbackHandlers';
 
+// Import the inline text highlighter
+import { InlineTextHighlighter } from './handlers/inlineTextHighlighter';
+
 export class SidePlayer {
   // Make these public for the event handlers to access
   public playerId: string = 'extension-side-player';
@@ -41,7 +44,9 @@ export class SidePlayer {
   // Audio streaming player
   private audioPlayer: AudioStreamPlayer;
   
-  // Sentence highlighter functionality removed
+  // Text highlighting functionality
+  private textHighlighter: InlineTextHighlighter;
+  private highlightingEnabled: boolean = false;
   
   // Default voice settings - use proper Speechify voice ID
   private defaultVoiceId: string = 'en-US-Neural2-F'; // Speechify female voice
@@ -50,6 +55,9 @@ export class SidePlayer {
   constructor() {
     // Initialize the audio player
     this.audioPlayer = new AudioStreamPlayer();
+    
+    // Initialize the inline text highlighter
+    this.textHighlighter = new InlineTextHighlighter(this.audioPlayer);
     
     // Set up callbacks for audio player events
     this.audioPlayer.setCallbacks({
@@ -68,6 +76,37 @@ export class SidePlayer {
     this.setupEnsurePlayerVisibleListener();
     
     console.log('📱 [Player] Initialized and ready');
+  }
+  
+  /**
+   * Toggle text highlighting
+   */
+  public toggleHighlighting(): void {
+    this.highlightingEnabled = !this.highlightingEnabled;
+    
+    if (this.highlightingEnabled && this.currentText) {
+      // Initialize the highlighter with the current text
+      this.textHighlighter.initialize(this.currentText);
+      
+      // Generate mock speech marks for testing
+      // In a real implementation, you would get these from your TTS service
+      const speechMarks = InlineTextHighlighter.generateMockSpeechMarks(this.currentText);
+      this.textHighlighter.setSpeechMarks(speechMarks);
+      
+      // Start highlighting if we're currently playing
+      if (this.isPlaying) {
+        this.textHighlighter.startHighlighting();
+      }
+    } else {
+      // Stop highlighting and clean up
+      this.textHighlighter.stopHighlighting();
+      
+      if (!this.highlightingEnabled) {
+        this.textHighlighter.cleanup();
+      }
+    }
+    
+    console.log('[SidePlayer] Text highlighting toggled:', this.highlightingEnabled);
   }
   
   // New method to ensure player is visible before playback
@@ -95,6 +134,11 @@ export class SidePlayer {
   private handlePlaybackStart(): void {
     this.isPlaying = true;
     handlePlaybackStart(this.playButton);
+    
+    // Start text highlighting if enabled
+    if (this.highlightingEnabled) {
+      this.textHighlighter.startHighlighting();
+    }
   }
   
   private handlePlaybackEnd(): void {
@@ -102,7 +146,10 @@ export class SidePlayer {
     this.isPaused = false;
     handlePlaybackEnd(this.playButton);
     
-    // Sentence highlighting removed
+    // Stop text highlighting
+    if (this.highlightingEnabled) {
+      this.textHighlighter.stopHighlighting();
+    }
   }
   
   // New method specifically for pause events
@@ -110,6 +157,11 @@ export class SidePlayer {
     this.isPlaying = false;
     this.isPaused = true;
     handlePlaybackPause(this.playButton);
+    
+    // Pause text highlighting
+    if (this.highlightingEnabled) {
+      this.textHighlighter.stopHighlighting();
+    }
   }
   
   private handlePlaybackError(error: string): void {
@@ -184,6 +236,13 @@ export class SidePlayer {
       }
     });
     this.playButton = playButton;
+    
+    // Highlighting button (new!)
+    const highlightButton = createButton(ICONS.highlight || '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zM3 4h2v16H3V4z"></path></svg>', 'Toggle Highlighting', () => {
+      console.log('[SidePlayer] Highlight button clicked');
+      this.toggleHighlighting();
+      addClickEffect(highlightButton);
+    });
     
     // Screenshot button
     const screenshotButton = createButton(ICONS.screenshot, 'Screenshot', () => {
@@ -291,6 +350,7 @@ export class SidePlayer {
     player.appendChild(timeDisplay);
     player.appendChild(playButton);
     player.appendChild(dividerAfterPlay); // Add divider after play button
+    player.appendChild(highlightButton); // Add highlight button
     player.appendChild(screenshotButton);
     player.appendChild(selectVoiceButton);
     player.appendChild(settingsButton);
@@ -343,6 +403,16 @@ export class SidePlayer {
     }
     
     this.currentText = text;
+    
+    // Initialize text highlighter if highlighting is enabled
+    if (this.highlightingEnabled) {
+      this.textHighlighter.initialize(text);
+      
+      // Generate speech marks (mock for now)
+      // In a real implementation, you would get these from your TTS API
+      const speechMarks = InlineTextHighlighter.generateMockSpeechMarks(text);
+      this.textHighlighter.setSpeechMarks(speechMarks);
+    }
     
     try {
       // First, get the selected voice from storage (or use default if not found)

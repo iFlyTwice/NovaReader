@@ -8,8 +8,7 @@ import { ICONS } from '../utils';
 import '../../../css/player.css';
 // Import audio player for streaming
 import { AudioStreamPlayer } from '../audioPlayer';
-// Import sentence highlighter
-import { SentenceHighlighter } from '../SentenceHighlighter';
+// Sentence highlighter removed
 
 // Import utility functions
 import { 
@@ -42,8 +41,7 @@ export class SidePlayer {
   // Audio streaming player
   private audioPlayer: AudioStreamPlayer;
   
-  // Sentence highlighter
-  private sentenceHighlighter: SentenceHighlighter | null = null;
+  // Sentence highlighter functionality removed
   
   // Default voice settings - would be replaced by user settings in production
   private defaultVoiceId: string = '21m00Tcm4TlvDq8ikWAM'; // Example: Adam voice
@@ -104,11 +102,7 @@ export class SidePlayer {
     this.isPaused = false;
     handlePlaybackEnd(this.playButton);
     
-    // Clear sentence highlighting when playback ends
-    if (this.sentenceHighlighter) {
-      this.sentenceHighlighter.clearAllHighlights();
-      this.sentenceHighlighter = null;
-    }
+    // Sentence highlighting removed
   }
   
   // New method specifically for pause events
@@ -126,10 +120,7 @@ export class SidePlayer {
     // Update the time display in the player UI
     updateTimeDisplay(this.timeDisplay, currentTime, duration);
     
-    // Update sentence highlighting if available
-    if (this.sentenceHighlighter) {
-      this.sentenceHighlighter.updateHighlight(currentTime);
-    }
+    // Sentence highlighting removed
   }
 
   public create(nextToPanel: boolean = false): void {
@@ -320,12 +311,6 @@ export class SidePlayer {
   }
 
   public remove(): void {
-    // Clean up sentence highlighting
-    if (this.sentenceHighlighter) {
-      this.sentenceHighlighter.clearAllHighlights();
-      this.sentenceHighlighter = null;
-    }
-    
     const player = document.getElementById(this.playerId);
     if (player) {
       player.remove();
@@ -373,15 +358,7 @@ export class SidePlayer {
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
       
-      // Ensure any previous highlighter is cleaned up and initialize a new one
-      if (this.sentenceHighlighter) {
-        console.log('[SidePlayer] Cleaning up previous highlighter');
-        this.sentenceHighlighter.clearAllHighlights();
-        this.sentenceHighlighter = null;
-      }
-      
-      // Initialize sentence highlighter
-      this.initializeSentenceHighlighter(text);
+      // Sentence highlighting functionality removed
       
       // Start playback with the audioPlayer
       await this.audioPlayer.playText(text, voiceId, modelId);
@@ -391,31 +368,9 @@ export class SidePlayer {
     }
   }
   
-  /**
-   * Initialize the sentence highlighter with the current text
-   */
-  private initializeSentenceHighlighter(text: string): void {
-    // Clean up any existing highlighter
-    if (this.sentenceHighlighter) {
-      this.sentenceHighlighter.clearAllHighlights();
-    }
-    
-    // Create a new sentence highlighter
-    this.sentenceHighlighter = new SentenceHighlighter(text);
-    
-    // Scan the document for elements to highlight
-    this.sentenceHighlighter.scanDocument();
-    
-    console.log('[SidePlayer] Sentence highlighter initialized');
-  }
+  // Sentence highlighter functionality removed
   
   public stopPlayback(): void {
-    // Clean up sentence highlighting
-    if (this.sentenceHighlighter) {
-      this.sentenceHighlighter.clearAllHighlights();
-      this.sentenceHighlighter = null;
-    }
-    
     this.audioPlayer.stopPlayback();
   }
   
@@ -501,10 +456,7 @@ export class SidePlayer {
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
       
-      // Make sure the sentence highlighter is initialized if it doesn't exist
-      if (!this.sentenceHighlighter && this.currentText) {
-        this.initializeSentenceHighlighter(this.currentText);
-      }
+      // Sentence highlighting functionality removed
       
       // Resume playback
       await this.audioPlayer.resumePlayback();

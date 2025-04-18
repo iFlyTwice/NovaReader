@@ -64,11 +64,14 @@ export async function checkAuthState(panel: HTMLElement): Promise<void> {
           // Update local storage with user preferences
           chrome.storage.local.set({
             apiKey: userPrefs.apiKey || '',
+            speechifyApiKey: userPrefs.speechifyApiKey || '',
             selectedModel: userPrefs.selectedModel || 'eleven_turbo_v2',
+            speechifyModel: userPrefs.speechifyModel || 'simba-english',
             playbackSpeed: userPrefs.playbackSpeed || 1.0,
             highlightEnabled: userPrefs.highlightEnabled !== undefined ? userPrefs.highlightEnabled : true,
             selectionButtonColor: userPrefs.selectionButtonColor || '#27272a',
-            topPlayerEnabled: userPrefs.topPlayerEnabled !== undefined ? userPrefs.topPlayerEnabled : true
+            topPlayerEnabled: userPrefs.topPlayerEnabled !== undefined ? userPrefs.topPlayerEnabled : true,
+            ttsProvider: userPrefs.ttsProvider || 'elevenlabs'
           }, () => {
             console.log('[Auth] User preferences loaded from database');
             
@@ -492,11 +495,14 @@ export function setupAuthHandlers(panel: HTMLElement, checkAuthStateCallback: (p
         // Get current settings
         chrome.storage.local.get([
           'apiKey',
+          'speechifyApiKey',
           'selectedModel',
+          'speechifyModel',
           'playbackSpeed',
           'highlightEnabled',
           'selectionButtonColor',
-          'topPlayerEnabled'
+          'topPlayerEnabled',
+          'ttsProvider'
         ], async (settings) => {
           try {
             // Make sure the top player setting is included in preferences

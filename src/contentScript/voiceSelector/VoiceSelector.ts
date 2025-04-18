@@ -1,9 +1,9 @@
 // SVG Icons
 import { ICONS } from '../utils';
-// Import ElevenLabs API
-import { fetchElevenLabsVoices, Voice } from '../elevenLabsApi';
-// Import voice IDs from config
-import { VOICE_IDS } from '../../config';
+// Import TTS API
+import { fetchVoices, Voice } from '../speechifyApi';
+// Import voice IDs and provider from config
+import { VOICE_IDS, SPEECHIFY_VOICE_IDS, TTS_PROVIDER } from '../../config';
 // Import helper functions
 import { createVoiceOption } from './utils/voiceOptionCreator';
 import { filterVoices } from './utils/voiceFilters';
@@ -15,43 +15,50 @@ export class VoiceSelector {
   private selectorElement: HTMLElement | null = null;
   private isPanelOpen: boolean = false;
   
-  // Voice options from ElevenLabs
+  // Voice options from TTS API
   private voices: Voice[] = [];
   
-  // Fallback voices with real ElevenLabs voice IDs
-  private fallbackVoices: Voice[] = [
-    { id: VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
-    { id: VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
-    { id: VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
-    { id: VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
-  ];
+  // Fallback voices with real voice IDs
+  private fallbackVoices: Voice[] = TTS_PROVIDER === 'elevenlabs' 
+    ? [
+        { id: VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
+        { id: VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
+        { id: VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
+        { id: VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
+      ]
+    : [
+        { id: SPEECHIFY_VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
+        { id: SPEECHIFY_VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
+        { id: SPEECHIFY_VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
+        { id: SPEECHIFY_VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
+      ];
   
   constructor() {
     // No need to inject styles separately as they're included in manifest
     
-    // Load voices from ElevenLabs API when the class is instantiated
+    // Load voices from TTS API when the class is instantiated
     this.loadVoices();
   }
   
-  // Load voices from ElevenLabs API
+  // Load voices from TTS API
   private async loadVoices(): Promise<void> {
     try {
-      const elevenLabsVoices = await fetchElevenLabsVoices();
+      const apiVoices = await fetchVoices();
       
-      if (elevenLabsVoices && elevenLabsVoices.length > 0) {
-        this.voices = elevenLabsVoices;
-        console.log(`Successfully loaded ${this.voices.length} voices from ElevenLabs`);
+      if (apiVoices && apiVoices.length > 0) {
+        this.voices = apiVoices;
+        console.log(`Successfully loaded ${this.voices.length} voices from ${TTS_PROVIDER}`);
         
         // Update UI if the selector is already visible
         if (this.selectorElement) {
           this.updateVoiceOptions();
         }
       } else {
-        console.warn('No voices received from ElevenLabs API, using fallback voices');
+        console.warn(`No voices received from ${TTS_PROVIDER} API, using fallback voices`);
         this.voices = [...this.fallbackVoices];
       }
     } catch (error) {
-      console.error('Error loading voices from ElevenLabs:', error);
+      console.error(`Error loading voices from ${TTS_PROVIDER}:`, error);
       this.voices = [...this.fallbackVoices];
     }
   }
@@ -190,19 +197,20 @@ export class VoiceSelector {
           const voiceDetails = selectedVoice.querySelector('.voice-details')?.textContent || '';
           
           // Update the current voice display
-          updateCurrentVoiceDisplay(voiceName, voiceDetails);
+          updateCurrentVoiceDisplay(voiceName, voiceDetails, TTS_PROVIDER);
           
           // Save the selection to Chrome storage
           chrome.storage.local.set({ 
             selectedVoiceId: voiceId,
             selectedVoiceName: voiceName,
-            selectedVoiceDetails: voiceDetails
+            selectedVoiceDetails: voiceDetails,
+            ttsProvider: TTS_PROVIDER
           }, () => {
             console.log('Voice selection saved to storage');
             
             // Dispatch an event to notify other components of the voice change
             const event = new CustomEvent('voice-selected', { 
-              detail: { voiceId, voiceName, voiceDetails } 
+              detail: { voiceId, voiceName, voiceDetails, provider: TTS_PROVIDER } 
             });
             document.dispatchEvent(event);
             

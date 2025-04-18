@@ -8,11 +8,21 @@ import { updateHighlightingState, updateSelectionButtonColor, updateTopPlayerVis
 export function setupSettingsHandlers(panel: HTMLElement): void {
   // Delay slightly to ensure the DOM is updated
   setTimeout(() => {
+    // Provider selector
+    const providerSelector = panel.querySelector('#provider-selector') as HTMLSelectElement;
+    
     // API Key settings
-    const apiKeyInput = panel.querySelector('#api-key-input') as HTMLInputElement;
-    const saveKeyButton = panel.querySelector('#save-api-key') as HTMLButtonElement;
-    const statusElement = panel.querySelector('.api-key-status') as HTMLElement;
-    const modelSelector = panel.querySelector('#model-selector') as HTMLSelectElement;
+    const elevenLabsApiKeyInput = panel.querySelector('#elevenlabs-api-key-input') as HTMLInputElement;
+    const saveElevenLabsKeyButton = panel.querySelector('#save-elevenlabs-api-key') as HTMLButtonElement;
+    const speechifyApiKeyInput = panel.querySelector('#speechify-api-key-input') as HTMLInputElement;
+    const saveSpeechifyKeyButton = panel.querySelector('#save-speechify-api-key') as HTMLButtonElement;
+    const statusElements = panel.querySelectorAll('.api-key-status') as NodeListOf<HTMLElement>;
+    
+    // Model selectors
+    const elevenLabsModelSelector = panel.querySelector('#elevenlabs-model-selector') as HTMLSelectElement;
+    const speechifyModelSelector = panel.querySelector('#speechify-model-selector') as HTMLSelectElement;
+    
+    // Playback settings
     const speedSlider = panel.querySelector('#speed-slider') as HTMLInputElement;
     const speedValue = panel.querySelector('#speed-value') as HTMLElement;
     
@@ -27,25 +37,63 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
     
     // Load saved settings if available
     chrome.storage.local.get([
-      'apiKey', 
-      'selectedModel', 
-      'playbackSpeed', 
-      'highlightEnabled', 
+      'apiKey',
+      'speechifyApiKey',
+      'selectedModel',
+      'speechifyModel',
+      'playbackSpeed',
+      'highlightEnabled',
       'selectionButtonColor',
-      'topPlayerEnabled'
+      'topPlayerEnabled',
+      'ttsProvider'
     ], (result) => {
-      // API Key
-      if (result.apiKey && apiKeyInput) {
-        apiKeyInput.value = result.apiKey;
-        if (statusElement) {
-          statusElement.textContent = 'API key is set';
-          statusElement.classList.add('success');
+      // TTS Provider
+      if (result.ttsProvider && providerSelector) {
+        providerSelector.value = result.ttsProvider;
+        
+        // Show/hide provider-specific settings
+        const elevenLabsSettings = panel.querySelectorAll('.elevenlabs-settings') as NodeListOf<HTMLElement>;
+        const speechifySettings = panel.querySelectorAll('.speechify-settings') as NodeListOf<HTMLElement>;
+        
+        if (result.ttsProvider === 'elevenlabs') {
+          elevenLabsSettings.forEach(el => el.style.display = 'block');
+          speechifySettings.forEach(el => el.style.display = 'none');
+        } else {
+          elevenLabsSettings.forEach(el => el.style.display = 'none');
+          speechifySettings.forEach(el => el.style.display = 'block');
         }
       }
       
-      // Model selector
-      if (result.selectedModel && modelSelector) {
-        modelSelector.value = result.selectedModel;
+      // ElevenLabs API Key
+      if (result.apiKey && elevenLabsApiKeyInput) {
+        elevenLabsApiKeyInput.value = result.apiKey;
+        statusElements.forEach(statusElement => {
+          if (statusElement.closest('.elevenlabs-settings')) {
+            statusElement.textContent = 'API key is set';
+            statusElement.classList.add('success');
+          }
+        });
+      }
+      
+      // Speechify API Key
+      if (result.speechifyApiKey && speechifyApiKeyInput) {
+        speechifyApiKeyInput.value = result.speechifyApiKey;
+        statusElements.forEach(statusElement => {
+          if (statusElement.closest('.speechify-settings')) {
+            statusElement.textContent = 'API key is set';
+            statusElement.classList.add('success');
+          }
+        });
+      }
+      
+      // ElevenLabs Model selector
+      if (result.selectedModel && elevenLabsModelSelector) {
+        elevenLabsModelSelector.value = result.selectedModel;
+      }
+      
+      // Speechify Model selector
+      if (result.speechifyModel && speechifyModelSelector) {
+        speechifyModelSelector.value = result.speechifyModel;
       }
       
       // Playback speed
@@ -82,32 +130,99 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
       }
     });
     
-    // Save API key
-    if (saveKeyButton && apiKeyInput && statusElement) {
-      saveKeyButton.addEventListener('click', () => {
-        const apiKey = apiKeyInput.value.trim();
+    // Provider selector
+    if (providerSelector) {
+      providerSelector.addEventListener('change', () => {
+        const provider = providerSelector.value;
+        chrome.storage.local.set({ ttsProvider: provider }, () => {
+          console.log(`TTS Provider changed to: ${provider}`);
+          
+          // Show/hide provider-specific settings
+          const elevenLabsSettings = panel.querySelectorAll('.elevenlabs-settings') as NodeListOf<HTMLElement>;
+          const speechifySettings = panel.querySelectorAll('.speechify-settings') as NodeListOf<HTMLElement>;
+          
+          if (provider === 'elevenlabs') {
+            elevenLabsSettings.forEach(el => el.style.display = 'block');
+            speechifySettings.forEach(el => el.style.display = 'none');
+          } else {
+            elevenLabsSettings.forEach(el => el.style.display = 'none');
+            speechifySettings.forEach(el => el.style.display = 'block');
+          }
+        });
+      });
+    }
+    
+    // Save ElevenLabs API key
+    if (saveElevenLabsKeyButton && elevenLabsApiKeyInput) {
+      saveElevenLabsKeyButton.addEventListener('click', () => {
+        const apiKey = elevenLabsApiKeyInput.value.trim();
         
         if (!apiKey) {
-          statusElement.textContent = 'Please enter an API key';
-          statusElement.classList.add('error');
-          statusElement.classList.remove('success');
+          statusElements.forEach(statusElement => {
+            if (statusElement.closest('.elevenlabs-settings')) {
+              statusElement.textContent = 'Please enter an API key';
+              statusElement.classList.add('error');
+              statusElement.classList.remove('success');
+            }
+          });
           return;
         }
         
         // Save API key to storage
         chrome.storage.local.set({ apiKey }, () => {
-          statusElement.textContent = 'API key saved successfully';
-          statusElement.classList.add('success');
-          statusElement.classList.remove('error');
+          statusElements.forEach(statusElement => {
+            if (statusElement.closest('.elevenlabs-settings')) {
+              statusElement.textContent = 'API key saved successfully';
+              statusElement.classList.add('success');
+              statusElement.classList.remove('error');
+            }
+          });
         });
       });
     }
     
-    // Model selector
-    if (modelSelector) {
-      modelSelector.addEventListener('change', () => {
-        const selectedModel = modelSelector.value;
+    // Save Speechify API key
+    if (saveSpeechifyKeyButton && speechifyApiKeyInput) {
+      saveSpeechifyKeyButton.addEventListener('click', () => {
+        const speechifyApiKey = speechifyApiKeyInput.value.trim();
+        
+        if (!speechifyApiKey) {
+          statusElements.forEach(statusElement => {
+            if (statusElement.closest('.speechify-settings')) {
+              statusElement.textContent = 'Please enter an API key';
+              statusElement.classList.add('error');
+              statusElement.classList.remove('success');
+            }
+          });
+          return;
+        }
+        
+        // Save API key to storage
+        chrome.storage.local.set({ speechifyApiKey }, () => {
+          statusElements.forEach(statusElement => {
+            if (statusElement.closest('.speechify-settings')) {
+              statusElement.textContent = 'API key saved successfully';
+              statusElement.classList.add('success');
+              statusElement.classList.remove('error');
+            }
+          });
+        });
+      });
+    }
+    
+    // ElevenLabs Model selector
+    if (elevenLabsModelSelector) {
+      elevenLabsModelSelector.addEventListener('change', () => {
+        const selectedModel = elevenLabsModelSelector.value;
         chrome.storage.local.set({ selectedModel });
+      });
+    }
+    
+    // Speechify Model selector
+    if (speechifyModelSelector) {
+      speechifyModelSelector.addEventListener('change', () => {
+        const speechifyModel = speechifyModelSelector.value;
+        chrome.storage.local.set({ speechifyModel });
       });
     }
     

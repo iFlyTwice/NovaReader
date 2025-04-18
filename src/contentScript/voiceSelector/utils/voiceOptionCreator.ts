@@ -1,5 +1,5 @@
 // Import the Voice type and the playSample function
-import { Voice } from '../../elevenLabsApi';
+import { Voice } from '../../speechifyApi';
 import { ICONS } from '../../utils';
 import { playSample } from '../handlers/voiceSampleHandler';
 

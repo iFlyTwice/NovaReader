@@ -2,6 +2,8 @@
  * Playback handlers for the top player
  */
 
+import { TTS_PROVIDER } from '../../../config';
+
 export function handlePlaybackStart(topPlayer: any): void {
   console.log('[TopPlayer] Playback started');
   topPlayer.isPlaying = true;
@@ -30,10 +32,10 @@ export function handlePlaybackError(topPlayer: any, error: string): void {
   // Check for common error types and display appropriate messages
   if (error.includes('quota') || error.includes('credits')) {
     // Show a quota error notification
-    showErrorNotification('ElevenLabs API quota exceeded. Please upgrade your ElevenLabs account or try a shorter text.');
+    showErrorNotification(`${TTS_PROVIDER === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'} API quota exceeded. Please upgrade your account or try a shorter text.`);
   } else if (error.includes('Unauthorized')) {
     // Show an authentication error notification
-    showErrorNotification('API key error. Please check your ElevenLabs API key in the extension settings.');
+    showErrorNotification(`API key error. Please check your ${TTS_PROVIDER === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'} API key in the extension settings.`);
   } else if (error.includes('timeout')) {
     // Show a timeout error notification
     showErrorNotification('Playback timed out. Trying with a shorter text segment...');

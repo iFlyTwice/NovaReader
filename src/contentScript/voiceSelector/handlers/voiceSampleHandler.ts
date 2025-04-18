@@ -1,5 +1,6 @@
 // Import the ICONS object
 import { ICONS } from '../../utils';
+import { TTS_PROVIDER, DEFAULT_MODEL_ID, DEFAULT_SPEECHIFY_MODEL_ID } from '../../../config';
 
 /**
  * Plays a sample of the selected voice
@@ -9,7 +10,7 @@ import { ICONS } from '../../utils';
 export async function playSample(voiceId: string, voiceName: string): Promise<void> {
   try {
     // Import the textToSpeech function only when needed to avoid circular dependencies
-    const { textToSpeech } = await import('../../elevenLabsApi');
+    const { textToSpeech } = await import('../../speechifyApi');
     
     const sampleText = "Hello! This is a sample of my voice.";
     
@@ -20,7 +21,10 @@ export async function playSample(voiceId: string, voiceName: string): Promise<vo
       playButton.classList.add('loading');
     }
     
-    const audioData = await textToSpeech(sampleText, voiceId);
+    // Use the appropriate model ID based on the TTS provider
+    const modelId = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
+    
+    const audioData = await textToSpeech(sampleText, voiceId, modelId);
     
     if (audioData) {
       // Create blob from audio data

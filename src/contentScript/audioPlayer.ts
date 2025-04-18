@@ -1,5 +1,6 @@
 // Audio player implementation for streaming TTS content
-import { streamTextToSpeech, textToSpeech } from './elevenLabsApi';
+import { streamTextToSpeech, textToSpeech } from './speechifyApi';
+import { TTS_PROVIDER, DEFAULT_MODEL_ID, DEFAULT_SPEECHIFY_MODEL_ID } from '../config';
 
 // Maximum time to wait for streaming setup in milliseconds (15 seconds)
 const STREAMING_TIMEOUT = 15000;
@@ -158,7 +159,7 @@ export class AudioStreamPlayer {
     try {
       console.log('[AudioPlayer] Starting to fetch stream with voice ID:', this.currentVoiceId);
       
-      // Get stream from ElevenLabs API
+      // Get stream from TTS API
       const stream = await streamTextToSpeech(this.currentText, this.currentVoiceId, this.currentModelId);
       
       if (!stream) {
@@ -466,28 +467,33 @@ export class AudioStreamPlayer {
   }
   
   /**
-   * Play text using ElevenLabs API without streaming (for shorter texts)
+   * Play text using TTS API without streaming (for shorter texts)
    * This uses the same approach as the voice selector
    */
-  public async playTextNonStreaming(text: string, voiceId: string, modelId: string = 'eleven_turbo_v2'): Promise<void> {
+  public async playTextNonStreaming(text: string, voiceId: string, modelId?: string): Promise<void> {
     if (!text.trim()) {
       this.onPlaybackError('No text provided for playback');
       return;
     }
     
+    // Use the appropriate model ID based on the TTS provider
+    const defaultModel = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
+    const finalModelId = modelId || defaultModel;
+    
     try {
       console.log('[AudioPlayer] Starting non-streaming playback with:', { 
         textLength: text.length, 
         voiceId, 
-        modelId 
+        modelId: finalModelId,
+        provider: TTS_PROVIDER
       });
       
       // Notify that playback is starting
       this.onPlaybackStart();
       
-      // Get complete audio data from ElevenLabs API
-      console.log('[AudioPlayer] Requesting audio from ElevenLabs API (non-streaming)');
-      const audioData = await textToSpeech(text, voiceId, modelId);
+      // Get complete audio data from TTS API
+      console.log(`[AudioPlayer] Requesting audio from ${TTS_PROVIDER} API (non-streaming)`);
+      const audioData = await textToSpeech(text, voiceId, finalModelId);
       
       if (!audioData) {
         console.error('[AudioPlayer] Failed to get audio data - null returned');
@@ -537,24 +543,28 @@ export class AudioStreamPlayer {
   private MAX_NON_STREAMING_LENGTH: number = 3000;
   
   /**
-   * Play text using ElevenLabs API
+   * Play text using TTS API
    * Always use streaming for proper playback
    */
-  public async playText(text: string, voiceId: string, modelId: string = 'eleven_turbo_v2'): Promise<void> {
+  public async playText(text: string, voiceId: string, modelId?: string): Promise<void> {
     if (!text.trim()) {
       this.onPlaybackError('No text provided for playback');
       return;
     }
     
+    // Use the appropriate model ID based on the TTS provider
+    const defaultModel = TTS_PROVIDER === 'elevenlabs' ? DEFAULT_MODEL_ID : DEFAULT_SPEECHIFY_MODEL_ID;
+    const finalModelId = modelId || defaultModel;
+    
     // Store current text and voice information
     this.currentText = text;
     this.currentVoiceId = voiceId;
-    this.currentModelId = modelId;
+    this.currentModelId = finalModelId;
     
     // For very short texts, we can still use non-streaming as it's faster
     if (text.length < 200) {
       console.log('[AudioPlayer] Text length very short, using non-streaming approach');
-      await this.playTextNonStreaming(text, voiceId, modelId);
+      await this.playTextNonStreaming(text, voiceId, finalModelId);
       return;
     }
     
@@ -563,7 +573,8 @@ export class AudioStreamPlayer {
       console.log('[AudioPlayer] Starting streaming playback with:', { 
         textLength: text.length, 
         voiceId, 
-        modelId 
+        modelId: finalModelId,
+        provider: TTS_PROVIDER
       });
       
       // Reset state

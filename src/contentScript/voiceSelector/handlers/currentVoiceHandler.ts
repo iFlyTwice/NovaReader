@@ -2,8 +2,9 @@
  * Update the current voice display with the selected voice info
  * @param voiceName The name of the selected voice
  * @param voiceDetails The details of the selected voice (gender, accent)
+ * @param provider Optional TTS provider name
  */
-export function updateCurrentVoiceDisplay(voiceName: string, voiceDetails: string): void {
+export function updateCurrentVoiceDisplay(voiceName: string, voiceDetails: string, provider?: string): void {
   const currentVoiceDisplay = document.getElementById('current-voice-display');
   if (!currentVoiceDisplay) return;
   
@@ -17,7 +18,13 @@ export function updateCurrentVoiceDisplay(voiceName: string, voiceDetails: strin
   
   const detailsSpan = document.createElement('span');
   detailsSpan.className = 'current-voice-details';
-  detailsSpan.textContent = voiceDetails;
+  
+  // Add provider info if available
+  if (provider) {
+    detailsSpan.textContent = `${voiceDetails} • ${provider === 'elevenlabs' ? 'ElevenLabs' : 'Speechify'}`;
+  } else {
+    detailsSpan.textContent = voiceDetails;
+  }
   
   // Append to container
   currentVoiceDisplay.appendChild(nameSpan);
@@ -31,12 +38,21 @@ export function updateCurrentVoiceDisplay(voiceName: string, voiceDetails: strin
  * Load and display the currently selected voice when the selector is opened
  */
 export function loadCurrentVoice(): void {
-  chrome.storage.local.get(['selectedVoiceId', 'selectedVoiceName', 'selectedVoiceDetails'], (result) => {
+  chrome.storage.local.get([
+    'selectedVoiceId', 
+    'selectedVoiceName', 
+    'selectedVoiceDetails',
+    'ttsProvider'
+  ], (result) => {
     if (result.selectedVoiceId && result.selectedVoiceName) {
-      console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId})`);
+      console.log(`Loading saved voice: ${result.selectedVoiceName} (${result.selectedVoiceId}) - Provider: ${result.ttsProvider || 'elevenlabs'}`);
       
       // Update the display
-      updateCurrentVoiceDisplay(result.selectedVoiceName, result.selectedVoiceDetails || '');
+      updateCurrentVoiceDisplay(
+        result.selectedVoiceName, 
+        result.selectedVoiceDetails || '',
+        result.ttsProvider
+      );
       
       // Also highlight the corresponding voice in the list if it exists
       const voiceOption = document.querySelector(`.voice-option[data-voice-id="${result.selectedVoiceId}"]`);

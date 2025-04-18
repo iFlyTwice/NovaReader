@@ -1,6 +1,11 @@
 // Improved Inline Text Highlighter using StringTracker for accurate synchronization
 import { AudioStreamPlayer } from '../../audioPlayer';
 import { createStringTracker, StringTracker } from '../../../stringTracker'; // Import StringTracker from local file
+import { createLogger } from '../../../utils/logger';
+import { SentenceHighlighter } from './sentenceHighlighter';
+
+// Create a logger instance for this module
+const logger = createLogger('TextHighlighter');
 
 // Define interfaces for speech marks data
 interface Chunk {
@@ -26,17 +31,19 @@ export class InlineTextHighlighter {
   private highlightClassName: string = 'nova-reader-highlight';
   private highlightedElements: HTMLElement[] = [];
   private highlightColor: string = '#ffc107'; // Default yellow highlight color
+  private sentenceHighlighter: SentenceHighlighter;
   
   // Configuration
   private config = {
-    highlightColor: '#ffc107',
-    highlightOpacity: 0.4,
-    transitionSpeed: '0.2s',
+    highlightColor: '#5664d2', // Changed to match the brand color (indigo)
+    highlightOpacity: 0.3,     // Increased for better visibility
+    transitionSpeed: '0.3s',   // Slightly slower for smoother transitions
     wordByWord: true
   };
   
   constructor(audioPlayer: AudioStreamPlayer) {
     this.audioPlayer = audioPlayer;
+    this.sentenceHighlighter = new SentenceHighlighter();
     
     // Create styles for highlighting
     this.createHighlightStyles();
@@ -52,12 +59,37 @@ export class InlineTextHighlighter {
     const style = document.createElement('style');
     style.id = 'nova-reader-highlight-styles';
     style.textContent = `
+      .nova-reader-word {
+        transition: all ${this.config.transitionSpeed} ease-out;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        position: relative;
+        display: inline;
+      }
+      
+      .nova-reader-word:hover {
+        background-color: ${this.config.highlightColor}33; /* 20% opacity */
+      }
+      
       .${this.highlightClassName} {
         background-color: ${this.config.highlightColor} !important;
         opacity: ${this.config.highlightOpacity};
-        transition: background-color ${this.config.transitionSpeed} ease;
-        border-radius: 2px;
+        transition: all ${this.config.transitionSpeed} ease-out;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         cursor: pointer;
+      }
+      
+      
+      /* Current word highlight that appears on top of the sentence highlight */
+      .${this.highlightClassName}-active {
+        background-color: ${this.config.highlightColor} !important;
+        opacity: ${this.config.highlightOpacity + 0.3};
+        animation: nova-reader-pulse 1.5s ease-in-out infinite;
+        box-shadow: 0 2px 8px rgba(86, 100, 210, 0.3);
+        border-radius: 3px;
+        position: relative;
+        z-index: 2;
       }
       
       .nova-reader-wrapper {
@@ -66,20 +98,33 @@ export class InlineTextHighlighter {
       }
       
       @keyframes nova-reader-pulse {
-        0% { opacity: ${this.config.highlightOpacity}; }
-        50% { opacity: ${this.config.highlightOpacity + 0.2}; }
-        100% { opacity: ${this.config.highlightOpacity}; }
+        0% { 
+          opacity: ${this.config.highlightOpacity + 0.3}; 
+          transform: scale(1);
+        }
+        50% { 
+          opacity: ${this.config.highlightOpacity + 0.5}; 
+          transform: scale(1.02);
+        }
+        100% { 
+          opacity: ${this.config.highlightOpacity + 0.3}; 
+          transform: scale(1);
+        }
       }
       
       .${this.highlightClassName}-active {
         background-color: ${this.config.highlightColor} !important;
         opacity: ${this.config.highlightOpacity + 0.3};
-        animation: nova-reader-pulse 1s infinite;
+        animation: nova-reader-pulse 1.5s ease-in-out infinite;
+        box-shadow: 0 2px 8px rgba(86, 100, 210, 0.3);
+        border-radius: 3px;
+        position: relative;
+        z-index: 1;
       }
     `;
     
     document.head.appendChild(style);
-    console.log('[InlineTextHighlighter] Highlight styles created');
+    logger.info('Highlight styles created');
   }
   
   /**
@@ -94,7 +139,10 @@ export class InlineTextHighlighter {
     // Try to find text on the page
     this.findTextOnPage();
     
-    console.log('[InlineTextHighlighter] Initialized with text length:', text.length);
+    // Initialize the sentence highlighter with the same text elements
+    this.sentenceHighlighter.initialize(this.textElements);
+    
+    logger.info(`Initialized with text length: ${text.length}`);
   }
   
   /**
@@ -139,7 +187,7 @@ export class InlineTextHighlighter {
     this.stringTracker = tracker;
     this.originalText = tracker.get();
     
-    console.log('[InlineTextHighlighter] Processed SSML text');
+    logger.info('Processed SSML text');
   }
   
   /**
@@ -155,11 +203,11 @@ export class InlineTextHighlighter {
     if (fullTextElements.length > 0) {
       // Use the first found element
       this.textElements = [fullTextElements[0]];
-      console.log('[InlineTextHighlighter] Found exact text match');
+      logger.info('Found exact text match');
     } else {
       // If no exact match, try to find the text spread across multiple elements
       this.textElements = this.findElementsWithPartialText(this.originalText);
-      console.log('[InlineTextHighlighter] Found partial text matches:', this.textElements.length);
+      logger.info(`Found partial text matches: ${this.textElements.length}`);
     }
     
     // If we found elements, prepare them for highlighting
@@ -233,6 +281,25 @@ export class InlineTextHighlighter {
       let newContent = '';
       let lastIndex = 0;
       
+      // Identify sentence boundaries in the original text
+      // This regex looks for sentence endings (period, question mark, exclamation mark followed by space or end)
+      const sentenceBoundaries: number[] = [];
+      const sentenceRegex = /[.!?](?:\s|$)/g;
+      let sentenceMatch;
+      let sentenceText = this.originalText;
+      
+      while ((sentenceMatch = sentenceRegex.exec(sentenceText)) !== null) {
+        sentenceBoundaries.push(sentenceMatch.index + 1); // +1 to include the punctuation
+      }
+      
+      // Add the end of text as a boundary if not already included
+      if (sentenceBoundaries.length === 0 || sentenceBoundaries[sentenceBoundaries.length - 1] < sentenceText.length) {
+        sentenceBoundaries.push(sentenceText.length);
+      }
+      
+      // Track current sentence index
+      let currentSentenceIndex = 0;
+      
       while ((match = wordPattern.exec(content)) !== null) {
         const word = match[1]; // The word
         const space = match[2]; // The following space/whitespace
@@ -244,8 +311,14 @@ export class InlineTextHighlighter {
           // Store the last position we found a word at
           lastIndex = wordIndex + word.length;
           
+          // Determine which sentence this word belongs to
+          while (currentSentenceIndex < sentenceBoundaries.length && 
+                 wordIndex + word.length > sentenceBoundaries[currentSentenceIndex]) {
+            currentSentenceIndex++;
+          }
+          
           // Wrap the word in a span with data attributes for time mapping
-          newContent += `<span class="nova-reader-word" data-original-index="${wordIndex}">${word}</span>${space}`;
+          newContent += `<span class="nova-reader-word" data-original-index="${wordIndex}" data-sentence-index="${currentSentenceIndex}">${word}</span>${space}`;
         } else {
           // If word not found (rare case), just add it without wrapping
           newContent += `${word}${space}`;
@@ -265,7 +338,7 @@ export class InlineTextHighlighter {
       });
     });
     
-    console.log('[InlineTextHighlighter] Words wrapped for highlighting');
+    logger.info('Words wrapped for highlighting');
   }
   
   /**
@@ -282,7 +355,7 @@ export class InlineTextHighlighter {
       const chunk = this.findChunkByIndex(originalIndex);
       
       if (chunk) {
-        console.log('[InlineTextHighlighter] Word clicked, seeking to', chunk.start_time, 'ms');
+        logger.info(`Word clicked, seeking to ${chunk.start_time} ms`);
         
         // Implement seeking in AudioStreamPlayer
         const seekTimeSeconds = chunk.start_time / 1000;
@@ -327,8 +400,7 @@ export class InlineTextHighlighter {
    */
   public setSpeechMarks(speechMarks: NestedChunk): void {
     this.speechMarks = speechMarks;
-    console.log('[InlineTextHighlighter] Speech marks set:', 
-      speechMarks.chunks ? speechMarks.chunks.length : 'No chunks');
+    logger.info(`Speech marks set: ${speechMarks.chunks ? speechMarks.chunks.length : 'No chunks'}`);
     
     // Map speech marks to wrapped words
     this.mapSpeechMarksToWords();
@@ -358,7 +430,7 @@ export class InlineTextHighlighter {
       });
     });
     
-    console.log('[InlineTextHighlighter] Speech marks mapped to words');
+    logger.info('Speech marks mapped to words');
   }
   
   /**
@@ -380,7 +452,10 @@ export class InlineTextHighlighter {
       onTimeUpdate: (currentTime, duration) => this.handleTimeUpdate(currentTime, duration)
     });
     
-    console.log('[InlineTextHighlighter] Started highlighting');
+    // Start sentence highlighting
+    this.sentenceHighlighter.startHighlighting();
+    
+    logger.info('Started highlighting');
   }
   
   /**
@@ -401,7 +476,10 @@ export class InlineTextHighlighter {
     // Clear all highlights
     this.clearHighlights();
     
-    console.log('[InlineTextHighlighter] Stopped highlighting');
+    // Stop sentence highlighting
+    this.sentenceHighlighter.stopHighlighting();
+    
+    logger.info('Stopped highlighting');
   }
   
   /**
@@ -483,27 +561,42 @@ export class InlineTextHighlighter {
     const currentChunk = this.findChunkAtTime(currentTimeMs);
     
     if (currentChunk) {
-      // Highlight all matching words
-      this.textElements.forEach(element => {
-        const wordElements = element.querySelectorAll('.nova-reader-word');
+      let currentWordElement: HTMLElement | null = null;
+      
+      // Find the current word across all text elements
+      for (const element of this.textElements) {
+        const wordElements = Array.from(element.querySelectorAll('.nova-reader-word')) as HTMLElement[];
         
-        wordElements.forEach(wordElement => {
+        // Find the current word
+        for (const wordElement of wordElements) {
           const chunkStart = parseInt(wordElement.getAttribute('data-chunk-start') || '-1');
           const chunkEnd = parseInt(wordElement.getAttribute('data-chunk-end') || '-1');
           
           // If this word element corresponds to the current chunk
           if (chunkStart === currentChunk.start && chunkEnd === currentChunk.end) {
-            // Apply active highlight
-            wordElement.classList.add(`${this.highlightClassName}-active`);
-            this.highlightedElements.push(wordElement as HTMLElement);
-            
-            // Scroll to the word if it's not visible
-            this.scrollToElementIfNeeded(wordElement as HTMLElement);
+            currentWordElement = wordElement;
+            break;
           }
-        });
-      });
+        }
+        
+        if (currentWordElement) break;
+      }
+      
+      // If we found the current word
+      if (currentWordElement) {
+        // Apply active highlight to the current word
+        currentWordElement.classList.add(`${this.highlightClassName}-active`);
+        this.highlightedElements.push(currentWordElement);
+        
+        // Scroll to the word if it's not visible
+        this.scrollToElementIfNeeded(currentWordElement);
+        
+        // Highlight the sentence using the sentence highlighter
+        this.sentenceHighlighter.highlightSentence(currentWordElement);
+      }
     }
   }
+  
   
   /**
    * Scroll to element if it's not visible in viewport
@@ -529,6 +622,7 @@ export class InlineTextHighlighter {
    * Clear all highlights
    */
   private clearHighlights(): void {
+    // Clear word highlights
     this.highlightedElements.forEach(element => {
       element.classList.remove(`${this.highlightClassName}-active`);
     });
@@ -542,6 +636,12 @@ export class InlineTextHighlighter {
     // Stop highlighting
     this.stopHighlighting();
     
+    // Clear any remaining highlights
+    this.clearHighlights();
+    
+    // Clean up sentence highlighter
+    this.sentenceHighlighter.cleanup();
+    
     // Remove processing classes
     this.textElements.forEach(element => {
       element.classList.remove('nova-reader-processed');
@@ -554,14 +654,17 @@ export class InlineTextHighlighter {
       element.innerHTML = text;
     });
     
-    console.log('[InlineTextHighlighter] Cleaned up');
+    logger.info('Cleaned up');
   }
   
   /**
-   * Set highlight color
+   * Set highlight colors
    */
-  public setHighlightColor(color: string): void {
-    this.config.highlightColor = color;
+  public setHighlightColors(wordColor: string, sentenceColor: string): void {
+    this.config.highlightColor = wordColor;
     this.createHighlightStyles(); // Recreate styles with new color
+    
+    // Update sentence highlighter color
+    this.sentenceHighlighter.setHighlightColor(sentenceColor);
   }
 }

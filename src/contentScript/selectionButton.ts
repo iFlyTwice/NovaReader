@@ -1,6 +1,9 @@
 // Selection Button Implementation
 import { ICONS } from './utils';
-// Import any necessary icons and styles
+import { createLogger } from '../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('SelectionButton');
 
 // Import CSS to help Vite track dependencies
 import '../../css/selectionButton.css';
@@ -12,6 +15,7 @@ export class SelectionButton {
   private selectedText: string = '';
   private isEnabled: boolean = true; // Default to enabled
   private buttonColor: string = '#27272a'; // Default zinc color
+  private _resetTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Verify that assets are available
@@ -27,13 +31,13 @@ export class SelectionButton {
       // Set the enable state
       if (result.highlightEnabled !== undefined) {
         this.isEnabled = result.highlightEnabled;
-        console.log(`[SelectionButton] Initial highlighting state: ${this.isEnabled ? 'enabled' : 'disabled'}`);
+        logger.info(`Initial highlighting state: ${this.isEnabled ? 'enabled' : 'disabled'}`);
       }
       
       // Set the button color
       if (result.selectionButtonColor) {
         this.buttonColor = result.selectionButtonColor;
-        console.log(`[SelectionButton] Initial button color: ${this.buttonColor}`);
+        logger.info(`Initial button color: ${this.buttonColor}`);
       }
       
       // Only now create the button (with correct initial state)
@@ -55,7 +59,7 @@ export class SelectionButton {
     document.addEventListener('update-highlighting-state', (event: any) => {
       const { enabled } = event.detail;
       this.isEnabled = enabled;
-      console.log(`[SelectionButton] Highlighting ${enabled ? 'enabled' : 'disabled'}`);
+      logger.info(`Highlighting ${enabled ? 'enabled' : 'disabled'}`);
       
       // Always hide button if disabled, regardless of current state
       if (!enabled && this.buttonElement) {
@@ -68,7 +72,7 @@ export class SelectionButton {
         // Set a timeout to enforce hiding again (catches race conditions)
         setTimeout(() => {
           if (this.buttonElement && !this.isEnabled) {
-            console.log('[SelectionButton] Double-checking button is hidden');
+            logger.info('Double-checking button is hidden');
             this.buttonElement.style.display = "none";
             this.buttonElement.style.visibility = "hidden";
           }
@@ -83,7 +87,7 @@ export class SelectionButton {
     document.addEventListener('update-selection-button-color', (event: any) => {
       const { color } = event.detail;
       this.buttonColor = color;
-      console.log(`[SelectionButton] Color updated to ${color}`);
+      logger.info(`Color updated to ${color}`);
       
       // Update button color if it exists
       if (this.buttonElement) {
@@ -103,7 +107,7 @@ export class SelectionButton {
     requiredAssets.forEach(asset => {
       try {
         const url = chrome.runtime.getURL(asset);
-        console.log(`[SelectionButton] Asset URL for ${asset}: ${url}`);
+        logger.info(`Asset URL for ${asset}: ${url}`);
         
         // Test that these assets can actually be fetched
         fetch(url)
@@ -111,13 +115,13 @@ export class SelectionButton {
             if (!response.ok) {
               throw new Error(`Failed to load asset: ${response.status} ${response.statusText}`);
             }
-            console.log(`[SelectionButton] Successfully verified asset: ${asset}`);
+            logger.info(`Successfully verified asset: ${asset}`);
           })
           .catch(error => {
-            console.error(`[SelectionButton] Asset fetch failed for ${asset}:`, error);
+            logger.error(`Asset fetch failed for ${asset}: ${error}`);
           });
       } catch (error) {
-        console.error(`[SelectionButton] Asset verification failed for ${asset}:`, error);
+        logger.error(`Asset verification failed for ${asset}: ${error}`);
       }
     });
   }
@@ -138,7 +142,7 @@ export class SelectionButton {
     // Explicitly set display and visibility based on enabled state
     button.style.display = "none"; // Always start hidden
     button.style.visibility = "hidden"; // Add extra visibility property
-    console.log(`[SelectionButton] Creating button with highlighting ${this.isEnabled ? 'enabled' : 'disabled'}`);
+    logger.info(`Creating button with highlighting ${this.isEnabled ? 'enabled' : 'disabled'}`);
     
     // Set the button color from settings
     button.style.backgroundColor = this.buttonColor;
@@ -262,14 +266,14 @@ export class SelectionButton {
     // Clear any existing Speechify audio URL to avoid using stale data
     if (typeof window !== 'undefined') {
       if ((window as any).__speechifyAudioUrl) {
-        console.log('👆 [Button] Clearing existing Speechify audio URL');
+        logger.info('Clearing existing Speechify audio URL');
         try {
           // If it's a blob URL, revoke it to prevent memory leaks
           if ((window as any).__speechifyAudioUrl.startsWith('blob:')) {
             URL.revokeObjectURL((window as any).__speechifyAudioUrl);
           }
         } catch (error) {
-          console.warn('👆 [Button] Error revoking URL:', error);
+          logger.warn(`Error revoking URL: ${error}`);
         }
         (window as any).__speechifyAudioUrl = null;
       }
@@ -278,13 +282,13 @@ export class SelectionButton {
     // Update button state
     if (this.currentState === 'speaking') {
       // If already speaking, pause playback
-      console.log('👆 [Button] Pausing playback');
+      logger.info('Pausing playback');
       this.setState('play');
       // Dispatch event to pause playback, keeping the text so we can resume later
       this.dispatchPlaybackEvent('pause', this.selectedText);
     } else {
       // If not speaking, start/resume playback
-      console.log('👆 [Button] Starting/resuming playback');
+      logger.info('Starting/resuming playback');
       this.setState('loading');
       
       // Ensure the player is visible before dispatching the play event
@@ -300,12 +304,12 @@ export class SelectionButton {
 
   // Method to update the button state from external sources
   public setState(state: 'play' | 'loading' | 'speaking'): void {
-    console.log('👆 [Button] State:', state);
+    logger.info(`State: ${state}`);
     
     this.currentState = state;
     
     if (!this.buttonElement) {
-      console.warn('👆 [Button] ⚠️ Element not found');
+      logger.warn('⚠️ Element not found');
       return;
     }
     
@@ -326,7 +330,7 @@ export class SelectionButton {
           // Set a timeout to reset to play state if stuck loading for too long
           this._resetTimeout = setTimeout(() => {
             if (this.currentState === 'loading') {
-              console.warn('[SelectionButton] Stuck in loading state for 8 seconds, auto-resetting');
+              logger.warn('Stuck in loading state for 8 seconds, auto-resetting');
               this.setState('play');
               
               // Show a tooltip warning
@@ -339,18 +343,15 @@ export class SelectionButton {
           break;
       }
     } catch (error) {
-      console.error('[SelectionButton] Error setting button state:', error);
+      logger.error(`Error setting button state: ${error}`);
       // Attempt to reset to a safe state
       try {
         this.buttonElement.src = chrome.runtime.getURL("assets/play.svg");
       } catch (fallbackError) {
-        console.error('[SelectionButton] Failed to set fallback icon:', fallbackError);
+        logger.error(`Failed to set fallback icon: ${fallbackError}`);
       }
     }
   }
-  
-  // Timer for auto-reset
-  private _resetTimeout: ReturnType<typeof setTimeout> | null = null;
   
   // Show tooltip with message
   private showTooltip(message: string): void {
@@ -391,7 +392,7 @@ export class SelectionButton {
 
   // Updated to support pause for preserving playback position
   private dispatchPlaybackEvent(action: 'play' | 'stop' | 'pause', text?: string): void {
-    console.log(`👆 [Button] Event: ${action}`);
+    logger.info(`Event: ${action}`);
     const event = new CustomEvent('selection-playback', {
       detail: {
         action,

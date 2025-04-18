@@ -9,6 +9,13 @@ import { createVoiceOption } from './utils/voiceOptionCreator';
 import { filterVoices } from './utils/voiceFilters';
 import { playSample } from './handlers/voiceSampleHandler';
 import { loadCurrentVoice, updateCurrentVoiceDisplay } from './handlers/currentVoiceHandler';
+import { createLogger } from '../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('VoiceSelector');
+
+// Static cache for voices to avoid refetching
+let cachedVoices: Voice[] | null = null;
 
 export class VoiceSelector {
   private selectorId: string = 'extension-voice-selector';
@@ -29,8 +36,37 @@ export class VoiceSelector {
   constructor() {
     // No need to inject styles separately as they're included in manifest
     
-    // Load voices from TTS API when the class is instantiated
-    this.loadVoices();
+    // Use cached voices if available, otherwise load them
+    if (cachedVoices) {
+      logger.info(`Using cached voices: ${cachedVoices.length}`);
+      this.voices = cachedVoices;
+    } else {
+      // Load voices from TTS API when the class is instantiated
+      this.loadVoices();
+    }
+  }
+  
+  /**
+   * Preload voices to avoid lag when opening the voice selector
+   * This should be called when the extension loads
+   */
+  public static async preloadVoices(): Promise<void> {
+    if (!cachedVoices) {
+      logger.info('Preloading voices...');
+      try {
+        const voices = await fetchVoices();
+        if (voices && voices.length > 0) {
+          cachedVoices = voices;
+          logger.info(`Successfully preloaded ${voices.length} voices from ${TTS_PROVIDER}`);
+        } else {
+          logger.warn(`No voices received during preload, will try again later`);
+        }
+      } catch (error) {
+        logger.error(`Error preloading voices: ${error}`);
+      }
+    } else {
+      logger.info(`Voices already preloaded: ${cachedVoices.length}`);
+    }
   }
   
   // Load voices from TTS API
@@ -40,18 +76,18 @@ export class VoiceSelector {
       
       if (apiVoices && apiVoices.length > 0) {
         this.voices = apiVoices;
-        console.log(`Successfully loaded ${this.voices.length} voices from ${TTS_PROVIDER}`);
+        logger.info(`Successfully loaded ${this.voices.length} voices from ${TTS_PROVIDER}`);
         
         // Update UI if the selector is already visible
         if (this.selectorElement) {
           this.updateVoiceOptions();
         }
       } else {
-        console.warn(`No voices received from ${TTS_PROVIDER} API, using fallback voices`);
+        logger.warn(`No voices received from ${TTS_PROVIDER} API, using fallback voices`);
         this.voices = [...this.fallbackVoices];
       }
     } catch (error) {
-      console.error(`Error loading voices from ${TTS_PROVIDER}:`, error);
+      logger.error(`Error loading voices from ${TTS_PROVIDER}: ${error}`);
       this.voices = [...this.fallbackVoices];
     }
   }
@@ -107,8 +143,8 @@ export class VoiceSelector {
       selector.classList.add('panel-open');
     }
     
-    // Add console log for debugging
-    console.log(`Creating voice selector with panel open: ${isPanelOpen}`);
+    // Log for debugging
+    logger.info(`Creating voice selector with panel open: ${isPanelOpen}`);
     
     // If no voices loaded yet (race condition), use fallback voices
     if (this.voices.length === 0) {
@@ -183,7 +219,7 @@ export class VoiceSelector {
       if (selectedVoice) {
         const voiceId = selectedVoice.getAttribute('data-voice-id');
         if (voiceId) {
-          console.log(`Saving selected voice: ${voiceId}`);
+          logger.info(`Saving selected voice: ${voiceId}`);
           
           // Get voice info for display
           const voiceName = selectedVoice.querySelector('.voice-name')?.textContent || '';
@@ -199,7 +235,7 @@ export class VoiceSelector {
             selectedVoiceDetails: voiceDetails,
             ttsProvider: TTS_PROVIDER
           }, () => {
-            console.log('Voice selection saved to storage');
+            logger.info('Voice selection saved to storage');
             
             // Dispatch an event to notify other components of the voice change
             const event = new CustomEvent('voice-selected', { 
@@ -218,7 +254,7 @@ export class VoiceSelector {
           });
         }
       } else {
-        console.log('No voice selected');
+        logger.warn('No voice selected');
         // Visual feedback that no voice is selected
         saveButton.classList.add('error');
         setTimeout(() => {
@@ -270,7 +306,7 @@ export class VoiceSelector {
         selector.classList.remove('panel-open');
       }
       
-      console.log(`Voice selector updated position. Panel open: ${isPanelOpen}`);
+      logger.info(`Voice selector updated position. Panel open: ${isPanelOpen}`);
     }
   }
 }

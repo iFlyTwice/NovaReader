@@ -10,6 +10,11 @@ import '../../../css/player.css';
 import { AudioStreamPlayer } from '../audioPlayer';
 // Import voice styler
 import voiceStyler from '../voiceStyler';
+// Import logger
+import { createLogger } from '../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('SidePlayer');
 
 // Import utility functions
 import { 
@@ -96,7 +101,7 @@ export class SidePlayer {
     // Set up observer to detect when voice selector is closed
     this.setupVoiceSelectorObserver();
     
-    console.log('📱 [Player] Initialized and ready');
+    logger.info('Initialized and ready');
   }
   
   /**
@@ -110,7 +115,7 @@ export class SidePlayer {
       
       // If the voice selector doesn't exist and the button has the active class, remove it
       if (!voiceSelector && this.selectVoiceButton && this.selectVoiceButton.classList.contains('active')) {
-        console.log('[SidePlayer] Voice selector closed, removing active class from button');
+        logger.info('Voice selector closed, removing active class from button');
         this.selectVoiceButton.classList.remove('active');
       }
     });
@@ -139,7 +144,7 @@ export class SidePlayer {
       // Update the SSML style
       this.setSSMLStyle(newStyle);
       
-      console.log('[SidePlayer] Voice style updated from styler:', { emotion, cadence });
+      logger.info(`Voice style updated from styler: ${JSON.stringify({ emotion, cadence })}`);
     });
   }
   
@@ -148,7 +153,7 @@ export class SidePlayer {
    */
   public setSSMLStyle(style: SSMLStyleOptions | null): void {
     this.ssmlStyle = style;
-    console.log('[SidePlayer] SSML style updated:', style);
+    logger.info(`SSML style updated: ${JSON.stringify(style)}`);
   }
   
   /**
@@ -183,7 +188,7 @@ export class SidePlayer {
       }
     }
     
-    console.log('[SidePlayer] Text highlighting toggled:', this.highlightingEnabled);
+    logger.info(`Text highlighting toggled: ${this.highlightingEnabled}`);
   }
   
   /**
@@ -208,26 +213,25 @@ export class SidePlayer {
       this.textHighlighter.startHighlighting();
     }
     
-    console.log('[SidePlayer] Text highlighting setup completed');
+    logger.info('Text highlighting setup completed');
   }
   
   // Method to ensure player is visible before playback
   private setupEnsurePlayerVisibleListener(): void {
     document.addEventListener('ensure-player-visible', (event: any) => {
       const { text } = event.detail;
-      console.log('📱 [Player] Ensuring visibility');
+      logger.info('Ensuring visibility');
       
       // If player isn't visible, create it
       if (!document.getElementById(this.playerId)) {
         this.create();
-        console.log('📱 [Player] Created new player instance');
+        logger.info('Created new player instance');
       }
       
       // Store the text so it can be played
       if (text) {
         this.currentText = text;
-        console.log('📱 [Player] Text stored: ', 
-                    text.length > 20 ? `${text.substring(0, 20)}...` : text);
+        logger.info(`Text stored: ${text.length > 20 ? `${text.substring(0, 20)}...` : text}`);
       }
     });
   }
@@ -298,11 +302,11 @@ export class SidePlayer {
     
     // Play button
     const playButton = createButton(ICONS.play, 'Play/Pause', () => {
-      console.log('[SidePlayer] Play button clicked, isPlaying:', this.isPlaying, 'isPaused:', this.isPaused);
+      logger.info(`Play button clicked, isPlaying: ${this.isPlaying}, isPaused: ${this.isPaused}`);
       
       if (this.isPlaying) {
         // If currently playing, pause instead of stop
-        console.log('[SidePlayer] Currently playing, will pause');
+        logger.info('Currently playing, will pause');
         this.pausePlayback();
         
         // Notify the selection button about the pause
@@ -318,20 +322,20 @@ export class SidePlayer {
         document.dispatchEvent(event);
       } else if (this.isPaused && this.currentText) {
         // If paused with text, resume
-        console.log('[SidePlayer] Currently paused with text, will resume');
+        logger.info('Currently paused with text, will resume');
         this.resumePlayback();
       } else if (this.currentText) {
         // If not playing or paused but have text, start playing
-        console.log('[SidePlayer] Not playing but have text, will start');
+        logger.info('Not playing but have text, will start');
         this.startPlayback(this.currentText);
       } else {
         // Try to get selected text if no current text
         const selectedText = window.getSelection()?.toString().trim();
         if (selectedText) {
-          console.log('[SidePlayer] No stored text, using selection');
+          logger.info('No stored text, using selection');
           this.startPlayback(selectedText);
         } else {
-          console.log('[SidePlayer] No text selected or stored');
+          logger.info('No text selected or stored');
         }
       }
     });
@@ -339,7 +343,7 @@ export class SidePlayer {
     
     // Highlighting button
     const highlightButton = createButton(ICONS.highlight || '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zM3 4h2v16H3V4z"></path></svg>', 'Toggle Highlighting', () => {
-      console.log('[SidePlayer] Highlight button clicked');
+      logger.info('Highlight button clicked');
       this.toggleHighlighting();
       addClickEffect(highlightButton);
     });
@@ -354,7 +358,7 @@ export class SidePlayer {
     
     // Style button
     const styleButton = createButton('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>', 'Voice Style', () => {
-      console.log('[SidePlayer] Style button clicked, toggling voice styler');
+      logger.info('Style button clicked, toggling voice styler');
       
       // Toggle the voice styler component
       const event = new CustomEvent('toggle-voice-styler');
@@ -366,7 +370,7 @@ export class SidePlayer {
     
     // Voice selection button
     const selectVoiceButton = createButton(ICONS.microphone, 'Select Voice', () => {
-      console.log('Select Voice clicked');
+      logger.info('Select Voice clicked');
       
       // Check if voice selector is already open
       const isVoiceSelectorOpen = !!document.getElementById('extension-voice-selector');
@@ -524,13 +528,13 @@ export class SidePlayer {
    */
   public async startPlayback(text: string): Promise<void> {
     if (!text.trim()) {
-      console.warn('No text provided for playback');
+      logger.warn('No text provided for playback');
       return;
     }
     
     // Stop any existing playback first
     if (this.isPlaying || this.isPaused) {
-      console.log('[SidePlayer] Stopping previous playback before starting new one');
+      logger.info('Stopping previous playback before starting new one');
       this.stopPlayback();
     }
     
@@ -544,15 +548,15 @@ export class SidePlayer {
       // Use simba-turbo model if any SSML styling is specified
       if (this.ssmlStyle && (this.ssmlStyle.cadence || this.ssmlStyle.emotion)) {
         modelId = 'simba-turbo';
-        console.log('[SidePlayer] Using simba-turbo model for voice styling support');
+        logger.info('Using simba-turbo model for voice styling support');
       }
       
-      console.log('[SidePlayer] Starting playback with:', { 
+      logger.info(`Starting playback with: ${JSON.stringify({ 
         textLength: text.length, 
         voiceId, 
         modelId,
         ssmlStyle: this.ssmlStyle 
-      });
+      })}`);
       
       // Update selection button to loading state
       dispatchSelectionButtonStateEvent('loading');
@@ -583,7 +587,7 @@ export class SidePlayer {
             throw new Error('Failed to get both audio and speech marks');
           }
         } catch (syncError) {
-          console.warn('[SidePlayer] Error with synthesizeWithSpeechMarks:', syncError);
+          logger.warn(`Error with synthesizeWithSpeechMarks: ${syncError}`);
           
           // Fall back to regular streaming
           await this.audioPlayer.playText(text, voiceId, modelId, this.ssmlStyle || undefined);
@@ -593,7 +597,7 @@ export class SidePlayer {
         await this.audioPlayer.playText(text, voiceId, modelId, this.ssmlStyle || undefined);
       }
     } catch (error) {
-      console.error('[SidePlayer] Error starting playback:', error);
+      logger.error(`Error starting playback: ${error}`);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
     }
   }
@@ -615,38 +619,38 @@ export class SidePlayer {
     // Add the event listener
     document.addEventListener('selection-playback', this.handleSelectionPlaybackEvent);
     
-    console.log('[SidePlayer] Selection playback listener set up');
+    logger.info('Selection playback listener set up');
   }
   
   // Separate method to handle selection playback events to avoid duplicate binding
   public handleSelectionPlaybackEvent = (event: any) => {
     const { action, text } = event.detail;
     
-    console.log(`📱 [Player] Event: ${action}${text ? ` (${text.length} chars)` : ''}`);
+    logger.info(`Event: ${action}${text ? ` (${text.length} chars)` : ''}`);
     
     // Ensure player is visible
     if (!document.getElementById(this.playerId)) {
-      console.log('📱 [Player] Creating instance');
+      logger.info('Creating instance');
       this.create();
     }
     
     if (action === 'play' && text) {
       // If we're in a paused state with the same text, resume playback
       if (this.isPaused && this.currentText === text) {
-        console.log('📱 [Player] Resuming paused content');
+        logger.info('Resuming paused content');
         this.resumePlayback();
       } else {
         // Otherwise start new playback
-        console.log('📱 [Player] Starting new content');
+        logger.info('Starting new content');
         this.startPlayback(text);
       }
     } else if (action === 'pause') {
       // Handle explicit pause action from selection button
-      console.log('📱 [Player] Pausing from selection button');
+      logger.info('Pausing from selection button');
       this.pausePlayback();
     } else if (action === 'stop') {
       // Just pause instead of stopping completely
-      console.log('📱 [Player] Stopping playback');
+      logger.info('Stopping playback');
       this.pausePlayback();
     }
   }
@@ -655,7 +659,7 @@ export class SidePlayer {
    * Pause playback without clearing buffers
    */
   public pausePlayback(): void {
-    console.log('📱 [Player] Pausing playback');
+    logger.info('Pausing playback');
     
     // We don't set isPaused here because the audioPlayer will call 
     // handlePlaybackPause() via the callback, which sets isPaused=true
@@ -664,15 +668,14 @@ export class SidePlayer {
     // which will update the UI and set the isPaused flag
     this.audioPlayer.pausePlayback();
     
-    console.log('📱 [Player] Text:', 
-                this.currentText ? `${this.currentText.substring(0, 20)}...` : 'none');
+    logger.info(`Text: ${this.currentText ? `${this.currentText.substring(0, 20)}...` : 'none'}`);
   }
   
   /**
    * Resume playback from where it was paused
    */
   public async resumePlayback(): Promise<void> {
-    console.log('📱 [Player] Resuming playback');
+    logger.info('Resuming playback');
     
     try {
       // Update UI to show loading state
@@ -704,7 +707,7 @@ export class SidePlayer {
       this.isPaused = false;
       this.isPlaying = true;
     } catch (error) {
-      console.error('📱 [Player] ⚠️ Resume error:', error);
+      logger.error(`Resume error: ${error}`);
       this.handlePlaybackError(`Failed to resume playback: ${error}`);
       // If resuming fails, reset the paused state
       this.isPaused = false;

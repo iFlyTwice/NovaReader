@@ -1,17 +1,21 @@
 /**
  * Visibility handlers for the top player
  */
+import { createLogger } from '../../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('TopPlayer');
 
 export function setupVisibilityListener(topPlayer: any): void {
   document.addEventListener('update-top-player-visibility', (event: any) => {
     const { visible } = event.detail;
-    console.log(`📖 [TopPlayer] Visibility update received: ${visible ? 'show' : 'hide'}`);
+    logger.info(`Visibility update received: ${visible ? 'show' : 'hide'}`);
     
     if (visible && !topPlayer.isVisible) {
-      console.log('📖 [TopPlayer] Triggering show() from visibility event');
+      logger.info('Triggering show() from visibility event');
       topPlayer.show();
     } else if (!visible) {
-      console.log('📖 [TopPlayer] Triggering remove() from visibility event');
+      logger.info('Triggering remove() from visibility event');
       // First check and stop any active playback before removing the player
       if (topPlayer.isPlaying) {
         topPlayer.stopPlayback();
@@ -26,11 +30,11 @@ export function checkInitialVisibility(topPlayer: any): void {
   chrome.storage.local.get(['topPlayerEnabled'], (result) => {
     // Default to true if setting doesn't exist
     const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
-    console.log(`📖 [TopPlayer] Initial visibility from storage: ${isVisible ? 'visible' : 'hidden'}`);
+    logger.info(`Initial visibility from storage: ${isVisible ? 'visible' : 'hidden'}`);
     
     if (isVisible) {
       // Force create the player regardless of current state
-      console.log('📖 [TopPlayer] Creating player during initial visibility check');
+      logger.info('Creating player during initial visibility check');
       // Use create directly to ensure it's created
       topPlayer.create();
     } else if (topPlayer.playerElement) {
@@ -38,7 +42,7 @@ export function checkInitialVisibility(topPlayer: any): void {
       if (topPlayer.isPlaying) {
         topPlayer.stopPlayback();
       }
-      console.log('📖 [TopPlayer] Removing player during initial visibility check');
+      logger.info('Removing player during initial visibility check');
       topPlayer.remove();
     }
   });
@@ -48,10 +52,10 @@ export function checkInitialVisibility(topPlayer: any): void {
     chrome.storage.local.get(['topPlayerEnabled'], (result) => {
       // Default to true if setting doesn't exist
       const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
-      console.log(`📖 [TopPlayer] Short delay visibility check: ${isVisible ? 'visible' : 'hidden'}`);
+      logger.info(`Short delay visibility check: ${isVisible ? 'visible' : 'hidden'}`);
       
       if (isVisible && !topPlayer.playerElement) {
-        console.log('📖 [TopPlayer] Creating player during short delay check');
+        logger.info('Creating player during short delay check');
         topPlayer.create();
       }
     });
@@ -62,17 +66,17 @@ export function checkInitialVisibility(topPlayer: any): void {
     chrome.storage.local.get(['topPlayerEnabled'], (result) => {
       // Default to true if setting doesn't exist
       const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
-      console.log(`📖 [TopPlayer] Delayed visibility check: ${isVisible ? 'visible' : 'hidden'}`);
+      logger.info(`Delayed visibility check: ${isVisible ? 'visible' : 'hidden'}`);
       
       if (isVisible && !topPlayer.playerElement) {
-        console.log('📖 [TopPlayer] Creating player during delayed visibility check');
+        logger.info('Creating player during delayed visibility check');
         topPlayer.create();
       } else if (!isVisible && topPlayer.playerElement) {
         // Ensure playback is stopped before removing
         if (topPlayer.isPlaying) {
           topPlayer.stopPlayback();
         }
-        console.log('📖 [TopPlayer] Removing player during delayed visibility check');
+        logger.info('Removing player during delayed visibility check');
         topPlayer.remove();
       }
     });
@@ -83,10 +87,10 @@ export function checkInitialVisibility(topPlayer: any): void {
     chrome.storage.local.get(['topPlayerEnabled'], (result) => {
       // Default to true if setting doesn't exist
       const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
-      console.log(`📖 [TopPlayer] Window load visibility check: ${isVisible ? 'visible' : 'hidden'}`);
+      logger.info(`Window load visibility check: ${isVisible ? 'visible' : 'hidden'}`);
       
       if (isVisible && !topPlayer.playerElement) {
-        console.log('📖 [TopPlayer] Creating player during window load check');
+        logger.info('Creating player during window load check');
         topPlayer.create();
       }
     });
@@ -98,7 +102,7 @@ export function checkInitialVisibility(topPlayer: any): void {
       const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
       
       if (isVisible && !topPlayer.playerElement && !topPlayer.insertionInProgress) {
-        console.log('📖 [TopPlayer] DOM changed, attempting to create player');
+        logger.info('DOM changed, attempting to create player');
         topPlayer.create();
       }
     });
@@ -110,7 +114,7 @@ export function checkInitialVisibility(topPlayer: any): void {
   // Stop the observer after 10 seconds to prevent performance issues
   setTimeout(() => {
     observer.disconnect();
-    console.log('📖 [TopPlayer] Stopped DOM mutation observer');
+    logger.info('Stopped DOM mutation observer');
   }, 10000);
 }
 
@@ -122,14 +126,14 @@ export function toggleVisibility(topPlayer: any): void {
     
     // Save new setting
     chrome.storage.local.set({ topPlayerEnabled: newVisibility }, () => {
-      console.log(`📖 [TopPlayer] Visibility toggled to: ${newVisibility ? 'visible' : 'hidden'}`);
+      logger.info(`Visibility toggled to: ${newVisibility ? 'visible' : 'hidden'}`);
       
       // Update visibility
       if (newVisibility) {
-        console.log('📖 [TopPlayer] Showing player after toggle');
+        logger.info('Showing player after toggle');
         topPlayer.show();
       } else {
-        console.log('📖 [TopPlayer] Removing player after toggle');
+        logger.info('Removing player after toggle');
         // First check and stop any active playback before removing
         if (topPlayer.isPlaying) {
           topPlayer.stopPlayback();

@@ -4,6 +4,10 @@
 
 // Import ICONS from utils
 import { ICONS } from '../utils';
+import { createLogger } from '../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('VoiceStyler');
 
 // Import styling options from configuration
 import { AVAILABLE_EMOTIONS, AVAILABLE_CADENCES } from './config';
@@ -88,7 +92,7 @@ export class VoiceStyler {
         styler.classList.remove('panel-open');
       }
       
-      console.log(`Voice styler updated position. Panel open: ${isPanelOpen}`);
+      logger.info(`Updated position. Panel open: ${isPanelOpen}`);
     }
   }
   
@@ -139,8 +143,8 @@ export class VoiceStyler {
       styler.classList.add('panel-open');
     }
     
-    // Add console log for debugging
-    console.log(`Creating voice styler with panel open: ${isPanelOpen}`);
+    // Log creation
+    logger.info(`Creating voice styler with panel open: ${isPanelOpen}`);
     
     // Create a top header with just the title
     const topHeader = document.createElement('div');

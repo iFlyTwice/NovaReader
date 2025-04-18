@@ -1,5 +1,10 @@
 // Speechify API integration for NovaReader with token-based authentication
 import { SPEECHIFY_API_KEY } from '../config';
+import { createLogger } from '../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('SpeechifyAPI');
+const tokenLogger = createLogger('TokenManager');
 
 // Define our Voice interface for internal use
 export interface Voice {
@@ -57,7 +62,7 @@ class TokenManager {
   private static async getApiKey(): Promise<string> {
     // First try from config
     if (SPEECHIFY_API_KEY) {
-      console.log('[TokenManager] Using API key from config');
+      tokenLogger.info('Using API key from config');
       return SPEECHIFY_API_KEY;
     }
     
@@ -79,7 +84,7 @@ class TokenManager {
     const apiKey = await this.getApiKey();
     
     // OAuth 2.0 Client Credentials flow
-    console.log('[TokenManager] Requesting a new access token');
+    tokenLogger.info('Requesting a new access token');
     
     const params = new URLSearchParams();
     params.append('grant_type', 'client_credentials');
@@ -96,12 +101,12 @@ class TokenManager {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[TokenManager] Token request failed:', response.status, errorText);
+      tokenLogger.error(`Token request failed: ${response.status} ${errorText}`);
       throw new Error(`Failed to get token: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    console.log('[TokenManager] Token received successfully');
+    tokenLogger.info('Token received successfully');
     return data;
   }
   
@@ -118,10 +123,10 @@ class TokenManager {
     // Schedule the refresh
     this.refreshTimeout = setTimeout(async () => {
       try {
-        console.log('[TokenManager] Refreshing access token');
+        tokenLogger.info('Refreshing access token');
         await this.getToken(true);
       } catch (error) {
-        console.error('[TokenManager] Error refreshing token:', error);
+        tokenLogger.error(`Error refreshing token: ${error}`);
       }
     }, refreshDelay);
   }
@@ -146,11 +151,11 @@ class TokenManager {
       // Schedule a refresh
       this.scheduleTokenRefresh(tokenData.expires_in);
       
-      console.log('[TokenManager] New access token acquired, expires in', tokenData.expires_in, 'seconds');
+      tokenLogger.info(`New access token acquired, expires in ${tokenData.expires_in} seconds`);
       
       return this.token;
     } catch (error) {
-      console.error('[TokenManager] Error getting access token:', error);
+      tokenLogger.error(`Error getting access token: ${error}`);
       throw error;
     }
   }
@@ -262,11 +267,11 @@ export const fetchVoices = async (): Promise<Voice[]> => {
     
     // Check if the response has the expected structure
     if (!data || !Array.isArray(data)) {
-      console.error('[SpeechifyAPI] Unexpected response format:', data);
+      logger.error(`Unexpected response format: ${JSON.stringify(data)}`);
       return [];
     }
     
-    console.log('[SpeechifyAPI] Received voices:', data.length);
+    logger.info(`Received voices: ${data.length}`);
     
     // Transform the Speechify voice format to our app's format
     const voices: Voice[] = data.map((voice: any) => {
@@ -280,7 +285,7 @@ export const fetchVoices = async (): Promise<Voice[]> => {
     
     return voices;
   } catch (error) {
-    console.error('[SpeechifyAPI] Error fetching Speechify voices:', error);
+    logger.error(`Error fetching Speechify voices: ${error}`);
     return [];
   }
 };
@@ -307,10 +312,10 @@ const getVoiceSample = async (voiceId: string): Promise<string> => {
     // Create an object URL from the blob
     const url = URL.createObjectURL(blob);
     
-    console.log(`[SpeechifyAPI] Created object URL for voice sample: ${url}`);
+    logger.info(`Created object URL for voice sample: ${url}`);
     return url;
   } catch (error) {
-    console.error('[SpeechifyAPI] Error getting voice sample:', error);
+    logger.error(`Error getting voice sample: ${error}`);
     throw error;
   }
 };
@@ -326,7 +331,7 @@ export const textToSpeech = async (
   try {
     // For testing only - return dummy audio data if we're in a test environment
     if (process.env.NODE_ENV === 'test') {
-      console.log('[SpeechifyAPI] Test environment detected, returning dummy audio data');
+      logger.info('Test environment detected, returning dummy audio data');
       return new ArrayBuffer(1024);
     }
     
@@ -336,18 +341,18 @@ export const textToSpeech = async (
     const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
                         (text.startsWith('<speak>') ? text : wrapWithSSML(text));
     
-    console.log('[SpeechifyAPI] Making TTS request with:', {
+    logger.info(`Making TTS request with: ${JSON.stringify({
       text: processedText.substring(0, 20) + '...',
       voiceId,
       modelId,
       hasSSMLStyle: !!ssmlStyle
-    });
+    })}`);
 
     // For testing with placeholder voice IDs, use a sample voice
     // Since this is typically just for the voice sample in the UI
     if (voiceId.includes('speechify-voice')) {
       try {
-        console.log('[SpeechifyAPI] Using sample voice for placeholder ID');
+        logger.info('Using sample voice for placeholder ID');
         // Get a real voice sample as a fallback
         const sampleVoiceId = 'en-US-Neural2-F'; // A known working voice ID
         const blobUrl = await getVoiceSample(sampleVoiceId);
@@ -361,7 +366,7 @@ export const textToSpeech = async (
         
         return arrayBuffer;
       } catch (sampleError) {
-        console.error('[SpeechifyAPI] Error getting sample voice:', sampleError);
+        logger.error(`Error getting sample voice: ${sampleError}`);
         // Continue with normal request
       }
     }
@@ -383,7 +388,7 @@ export const textToSpeech = async (
     });
 
     if (!response.ok) {
-      console.error(`[SpeechifyAPI] Error: ${response.status} ${response.statusText}`);
+      logger.error(`Error: ${response.status} ${response.statusText}`);
       return null;
     }
 
@@ -395,7 +400,7 @@ export const textToSpeech = async (
       const data = await response.json();
       
       if (!data || (!data.audio_data && !data.audio)) {
-        console.error('[SpeechifyAPI] Unexpected response format:', data);
+        logger.error(`Unexpected response format: ${JSON.stringify(data)}`);
         return null;
       }
       
@@ -415,7 +420,7 @@ export const textToSpeech = async (
       return await response.arrayBuffer();
     }
   } catch (error) {
-    console.error('[SpeechifyAPI] Error converting text to speech:', error);
+    logger.error(`Error converting text to speech: ${error}`);
     return null;
   }
 };
@@ -433,13 +438,13 @@ export const synthesizeWithSpeechMarks = async (
     
     const token = await TokenManager.getToken();
     
-    console.log('[SpeechifyAPI] Making synthesis request with speech marks:', {
+    logger.info(`Making synthesis request with speech marks: ${JSON.stringify({
       textLength: processedText.length,
       voiceId,
       modelId,
       hasSSMLStyle: !!ssmlStyle,
       returnSpeechMarks
-    });
+    })}`);
     
     // Make the API request
     const response = await fetch('https://api.sws.speechify.com/v1/audio/speech', {
@@ -458,7 +463,7 @@ export const synthesizeWithSpeechMarks = async (
     });
     
     if (!response.ok) {
-      console.error(`[SpeechifyAPI] Synthesis error: ${response.status} ${response.statusText}`);
+      logger.error(`Synthesis error: ${response.status} ${response.statusText}`);
       return { audio: null };
     }
     
@@ -480,13 +485,12 @@ export const synthesizeWithSpeechMarks = async (
     let speechMarks: NestedChunk | undefined;
     if (data.speech_marks) {
       speechMarks = data.speech_marks as NestedChunk;
-      console.log('[SpeechifyAPI] Received speech marks:', 
-        speechMarks.chunks ? speechMarks.chunks.length : 'No chunks');
+      logger.info(`Received speech marks: ${speechMarks.chunks ? speechMarks.chunks.length : 'No chunks'}`);
     }
     
     return { audio, speechMarks };
   } catch (error) {
-    console.error('[SpeechifyAPI] Error with synthesis and speech marks:', error);
+    logger.error(`Error with synthesis and speech marks: ${error}`);
     return { audio: null };
   }
 };
@@ -499,13 +503,13 @@ export const streamTextToSpeech = async (
   ssmlStyle?: SSMLStyleOptions
 ): Promise<ReadableStream<Uint8Array> | null> => {
   try {
-    console.log('[SpeechifyAPI] Starting TTS stream request');
-    console.log('[SpeechifyAPI] Text length:', text.length);
-    console.log('[SpeechifyAPI] Voice ID:', voiceId);
-    console.log('[SpeechifyAPI] SSML Style:', ssmlStyle ? 'Yes' : 'No');
+    logger.info('Starting TTS stream request');
+    logger.info(`Text length: ${text.length}`);
+    logger.info(`Voice ID: ${voiceId}`);
+    logger.info(`SSML Style: ${ssmlStyle ? 'Yes' : 'No'}`);
     
     if (!voiceId || voiceId === 'undefined') {
-      console.error('[SpeechifyAPI] Invalid voice ID provided');
+      logger.error('Invalid voice ID provided');
       throw new Error('Invalid voice ID provided. Please select a valid voice.');
     }
     
@@ -542,10 +546,10 @@ export const streamTextToSpeech = async (
         throw new Error(`Stream endpoint failed: ${response.status} ${response.statusText}`);
       }
       
-      console.log('[SpeechifyAPI] Stream endpoint succeeded, returning stream');
+      logger.info('Stream endpoint succeeded, returning stream');
       return response.body;
     } catch (streamError) {
-      console.warn('[SpeechifyAPI] Stream endpoint failed, falling back to direct approach:', streamError);
+      logger.warn(`Stream endpoint failed, falling back to direct approach: ${streamError}`);
       
       // 2. Fallback to direct audio approach
       // Generate a blob URL for the audio using the speech endpoint
@@ -561,16 +565,16 @@ export const streamTextToSpeech = async (
           if (xhr.status === 200) {
             const blob = xhr.response;
             const url = URL.createObjectURL(blob);
-            console.log('[SpeechifyAPI] Created blob URL:', url);
+            logger.info(`Created blob URL: ${url}`);
             resolve(url);
           } else {
-            console.error(`[SpeechifyAPI] XMLHttpRequest failed: ${xhr.status}`);
+            logger.error(`XMLHttpRequest failed: ${xhr.status}`);
             reject(new Error(`XMLHttpRequest failed: ${xhr.status}`));
           }
         };
         
         xhr.onerror = function() {
-          console.error('[SpeechifyAPI] XMLHttpRequest network error');
+          logger.error('XMLHttpRequest network error');
           reject(new Error('XMLHttpRequest network error'));
         };
         
@@ -589,13 +593,13 @@ export const streamTextToSpeech = async (
       
       // Store the audio URL globally so we can access it later for direct playback
       if (typeof window !== 'undefined') {
-        console.log('[SpeechifyAPI] Setting global __speechifyAudioUrl:', audioUrl);
+        logger.info(`Setting global __speechifyAudioUrl: ${audioUrl}`);
         (window as any).__speechifyAudioUrl = audioUrl;
         
         // Ensure the audio URL is available for the next tick in case there's a race condition
         setTimeout(() => {
           if (typeof window !== 'undefined' && !(window as any).__speechifyAudioUrl) {
-            console.log('[SpeechifyAPI] Audio URL missing, re-setting it:', audioUrl);
+            logger.info(`Audio URL missing, re-setting it: ${audioUrl}`);
             (window as any).__speechifyAudioUrl = audioUrl;
           }
         }, 0);
@@ -616,7 +620,7 @@ export const streamTextToSpeech = async (
       });
     }
   } catch (error) {
-    console.error('[SpeechifyAPI] Error with streaming text to speech:', error);
+    logger.error(`Error with streaming text to speech: ${error}`);
     throw error;
   }
 };

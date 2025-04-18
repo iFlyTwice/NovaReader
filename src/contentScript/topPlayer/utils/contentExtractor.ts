@@ -1,14 +1,18 @@
 /**
  * Content extraction utilities for the top player
  */
+import { createLogger } from '../../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('TopPlayer');
 
 // Extract the main text content from the page in paragraphs
 export function extractPageText(topPlayer: any): void {
-  console.log('[TopPlayer] Extracting page text...');
+  logger.info('Extracting page text...');
   
   // If we already have paragraphs, don't extract again
   if (topPlayer.paragraphs && topPlayer.paragraphs.length > 0) {
-    console.log(`[TopPlayer] Already have ${topPlayer.paragraphs.length} paragraphs, skipping extraction`);
+    logger.info(`Already have ${topPlayer.paragraphs.length} paragraphs, skipping extraction`);
     return;
   }
   
@@ -27,7 +31,7 @@ export function extractPageText(topPlayer: any): void {
       for (const container of possibleContentContainers) {
         if (container) {
           mainContent = container;
-          console.log('[TopPlayer] Found Coursera-specific content container');
+          logger.info('Found Coursera-specific content container');
           break;
         }
       }
@@ -42,7 +46,7 @@ export function extractPageText(topPlayer: any): void {
         const container = document.querySelector(selector);
         if (container) {
           mainContent = container;
-          console.log(`[TopPlayer] Found content container: ${selector}`);
+          logger.info(`Found content container: ${selector}`);
           break;
         }
       }
@@ -55,7 +59,7 @@ export function extractPageText(topPlayer: any): void {
     let startElement = null;
     
     if (topPlayerElement) {
-      console.log('[TopPlayer] Found top player element, will extract text after it');
+      logger.info('Found top player element, will extract text after it');
       
       // Find the next sibling element or parent's next sibling
       let current: HTMLElement | null = topPlayerElement;
@@ -78,7 +82,7 @@ export function extractPageText(topPlayer: any): void {
     // If we couldn't find a good starting element, just use the main content
     if (!startElement) {
       startElement = mainContent;
-      console.log('[TopPlayer] Using main content as starting element');
+      logger.info('Using main content as starting element');
     }
     
     // Collect all text nodes under the start element
@@ -123,7 +127,7 @@ export function extractPageText(topPlayer: any): void {
     
     // If we didn't find any paragraphs, try a more aggressive approach
     if (paragraphs.length === 0 && mainContent) {
-      console.log('[TopPlayer] No paragraphs found, using fallback text extraction');
+      logger.info('No paragraphs found, using fallback text extraction');
       
       // Try to get text from the document title and meta description first
       const title = document.title;
@@ -190,27 +194,27 @@ export function extractPageText(topPlayer: any): void {
       }
     }
     
-    console.log(`[TopPlayer] Extracted ${topPlayer.paragraphs.length} paragraphs with ${wordCount} words, estimated reading time: ${readingTimeMinutes} minutes`);
+    logger.info(`Extracted ${topPlayer.paragraphs.length} paragraphs with ${wordCount} words, estimated reading time: ${readingTimeMinutes} minutes`);
     
     // Debug output for first few paragraphs
     if (topPlayer.paragraphs.length > 0) {
-      console.log('[TopPlayer] First paragraph:', topPlayer.paragraphs[0].substring(0, 100) + '...');
+      logger.info(`First paragraph: ${topPlayer.paragraphs[0].substring(0, 100)}...`);
     } else {
       // Only log as debug, not error - we'll try again later
-      console.debug('[TopPlayer] No paragraphs extracted in initial attempt');
+      logger.debug('No paragraphs extracted in initial attempt');
     }
   } catch (error) {
-    console.error('[TopPlayer] Error extracting page text:', error);
+    logger.error(`Error extracting page text: ${error}`);
   }
 }
 
 // Fallback method for text extraction that's more aggressive
 export function fallbackTextExtraction(topPlayer: any): void {
-  console.debug('[TopPlayer] Starting fallback extraction');
+  logger.debug('Starting fallback extraction');
   
   // If we already have paragraphs, don't extract again unless forced
   if (topPlayer.paragraphs && topPlayer.paragraphs.length > 0) {
-    console.log(`[TopPlayer] Already have ${topPlayer.paragraphs.length} paragraphs, skipping fallback extraction`);
+    logger.info(`Already have ${topPlayer.paragraphs.length} paragraphs, skipping fallback extraction`);
     return;
   }
   
@@ -252,9 +256,9 @@ export function fallbackTextExtraction(topPlayer: any): void {
         }
       }
       
-      console.log(`📖 [TopPlayer] Found ${topPlayer.paragraphs.length} paragraphs with ${wordCount} words (${readingTimeMinutes} min)`);
+      logger.info(`Found ${topPlayer.paragraphs.length} paragraphs with ${wordCount} words (${readingTimeMinutes} min)`);
     } else {
-      console.debug('[TopPlayer] Still waiting for content to load');
+      logger.debug('Still waiting for content to load');
       
       // If we still don't have any paragraphs, create a default one
       topPlayer.paragraphs = ["Listen to This Page"];
@@ -270,7 +274,7 @@ export function fallbackTextExtraction(topPlayer: any): void {
       }
     }
   } catch (error) {
-    console.error('[TopPlayer] Error in fallback text extraction:', error);
+    logger.error(`Error in fallback text extraction: ${error}`);
   }
 }
 
@@ -279,7 +283,7 @@ export function chunkText(text: string, maxChunkLength: number): string[] {
   const chunks: string[] = [];
   let start = 0;
   
-  console.log(`[TopPlayer] Chunking text of length ${text.length} into pieces of max ${maxChunkLength} characters`);
+  logger.info(`Chunking text of length ${text.length} into pieces of max ${maxChunkLength} characters`);
   
   while (start < text.length) {
     // Find a good breaking point near the max chunk size
@@ -312,7 +316,7 @@ export function chunkText(text: string, maxChunkLength: number): string[] {
     const chunk = text.substring(start, end);
     chunks.push(chunk);
     
-    console.log(`[TopPlayer] Created chunk ${chunks.length}: ${start}-${end} (length: ${chunk.length})`);
+    logger.info(`Created chunk ${chunks.length}: ${start}-${end} (length: ${chunk.length})`);
     
     // Move to the next chunk
     start = end;

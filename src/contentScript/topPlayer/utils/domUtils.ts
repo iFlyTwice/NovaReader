@@ -1,6 +1,10 @@
 /**
  * DOM utilities for the top player
  */
+import { createLogger } from '../../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('TopPlayer');
 
 /**
  * Checks if the hostname is a news site
@@ -18,7 +22,7 @@ export function isNewsSite(hostname: string): boolean {
  * Insert player for Coursera pages with robust retry and DOM observation
  */
 export function insertForCoursera(player: HTMLElement): void {
-  console.log('[TopPlayer] Detected Coursera, using enhanced Coursera-specific insertion');
+  logger.info('Detected Coursera, using enhanced Coursera-specific insertion');
   
   // Maximum number of retries
   const MAX_RETRIES = 5;
@@ -46,7 +50,7 @@ export function insertForCoursera(player: HTMLElement): void {
           // If no next sibling, append after reading title
           readingTitle.parentNode.appendChild(player);
         }
-        console.log('[TopPlayer] Inserted player after reading title');
+        logger.info('Inserted player after reading title');
         isInserted = true;
         return true;
       }
@@ -56,7 +60,7 @@ export function insertForCoursera(player: HTMLElement): void {
       if (courseContent && courseContent.parentNode) {
         // Insert before the course content
         courseContent.parentNode.insertBefore(player, courseContent);
-        console.log('[TopPlayer] Inserted player before course content');
+        logger.info('Inserted player before course content');
         isInserted = true;
         return true;
       }
@@ -70,14 +74,14 @@ export function insertForCoursera(player: HTMLElement): void {
       if (contentArea) {
         // Insert at the top of the content area
         contentArea.insertBefore(player, contentArea.firstChild);
-        console.log('[TopPlayer] Inserted player at top of content area');
+        logger.info('Inserted player at top of content area');
         isInserted = true;
         return true;
       }
       
       return false;
     } catch (err) {
-      console.error('[TopPlayer] Error in Coursera insertion attempt:', err);
+      logger.error(`Error in Coursera insertion attempt: ${err}`);
       return false;
     }
   };
@@ -86,7 +90,7 @@ export function insertForCoursera(player: HTMLElement): void {
   const retryWithBackoff = () => {
     // Check if we've reached the maximum number of retries
     if (retryCount >= MAX_RETRIES) {
-      console.warn('[TopPlayer] Max retries reached, using fallback insertion');
+      logger.warn('Max retries reached, using fallback insertion');
       if (observer) {
         observer.disconnect();
         observer = null;
@@ -112,7 +116,7 @@ export function insertForCoursera(player: HTMLElement): void {
     }
     
     // Schedule next retry with increased delay (exponential backoff)
-    console.log(`[TopPlayer] Insertion attempt ${retryCount} failed, retrying in ${retryDelay}ms`);
+    logger.info(`Insertion attempt ${retryCount} failed, retrying in ${retryDelay}ms`);
     setTimeout(retryWithBackoff, retryDelay);
     
     // Increase delay for next retry (exponential backoff)
@@ -131,7 +135,7 @@ export function insertForCoursera(player: HTMLElement): void {
     }
     
     // Some DOM changes occurred, try insertion again
-    console.log('[TopPlayer] DOM changed, attempting insertion');
+    logger.info('DOM changed, attempting insertion');
     
     // Try insertion
     if (attemptInsertion()) {
@@ -158,7 +162,7 @@ export function insertForCoursera(player: HTMLElement): void {
     setTimeout(() => {
       // If still not inserted after all retries and waiting for DOM changes
       if (!isInserted) {
-        console.warn('[TopPlayer] Could not find suitable Coursera container after waiting, using fallback');
+        logger.warn('Could not find suitable Coursera container after waiting, using fallback');
         if (observer) {
           observer.disconnect();
           observer = null;
@@ -179,7 +183,7 @@ export function insertForCoursera(player: HTMLElement): void {
  * Insert player for news sites
  */
 export function insertForNewsSite(player: HTMLElement): void {
-  console.log('[TopPlayer] Detected news site, using news site-specific insertion');
+  logger.info('Detected news site, using news site-specific insertion');
   
   try {
     // For news sites, try to insert before the article title or headline
@@ -192,13 +196,13 @@ export function insertForNewsSite(player: HTMLElement): void {
     if (articleTitle && articleTitle.parentNode) {
       // Insert before the article title
       articleTitle.parentNode.insertBefore(player, articleTitle);
-      console.log('[TopPlayer] Inserted player before article title');
+      logger.info('Inserted player before article title');
     } else {
       // If the article title is not found, use the default insertion
       insertDefault(player);
     }
   } catch (err) {
-    console.error('[TopPlayer] Error inserting for news site:', err);
+    logger.error(`Error inserting for news site: ${err}`);
     // Fallback to default insertion if anything goes wrong
     insertDefault(player);
   }
@@ -243,13 +247,13 @@ export function insertDefault(player: HTMLElement): void {
     
     if (targetH1 && targetH1.parentNode) {
       // If we found a suitable H1, insert the player before it
-      console.log('[TopPlayer] Found H1, inserting player before it');
+      logger.info('Found H1, inserting player before it');
       targetH1.parentNode.insertBefore(player, targetH1);
       return;
     }
     
     // Fallback: add player to page (at the top of the content)
-    console.log('[TopPlayer] No suitable H1 found, using fallback insertion');
+    logger.info('No suitable H1 found, using fallback insertion');
     
     // Try to find a suitable content container
     const contentContainers = [
@@ -275,7 +279,7 @@ export function insertDefault(player: HTMLElement): void {
       contentArea.appendChild(player);
     }
   } catch (err) {
-    console.error('[TopPlayer] Error in default insertion:', err);
+    logger.error(`Error in default insertion: ${err}`);
     // Ultimate fallback - just add to body
     document.body.insertBefore(player, document.body.firstChild);
   }

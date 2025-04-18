@@ -7,6 +7,10 @@ import '../../../css/top-player.css';
 
 // Import Icons
 import { ICONS } from '../utils';
+import { createLogger } from '../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('TopPlayer');
 import { SettingsDropdown, SettingsDropdownProps } from './components';
 import { AudioStreamPlayer } from '../audioPlayer';
 
@@ -104,7 +108,7 @@ export class TopPlayer {
   private setupVoiceSelectionListener(): void {
     document.addEventListener('voice-selected', (event: any) => {
       const { voiceId } = event.detail;
-      console.log('[TopPlayer] Voice selection changed to:', voiceId);
+      logger.info(`Voice selection changed to: ${voiceId}`);
       this.defaultVoiceId = voiceId;
     });
   }
@@ -143,17 +147,17 @@ export class TopPlayer {
   }
   
   public create(): void {
-    console.log('[TopPlayer] Creating top player');
+    logger.info('Creating top player');
     
     // Check if player already exists to avoid duplicates
     if (document.getElementById(this.playerId)) {
-      console.log('[TopPlayer] Player already exists, not creating duplicate');
+      logger.info('Player already exists, not creating duplicate');
       return;
     }
     
     // Check if insertion is already in progress
     if (this.insertionInProgress) {
-      console.log('[TopPlayer] Insertion already in progress');
+      logger.info('Insertion already in progress');
       return;
     }
     
@@ -175,15 +179,15 @@ export class TopPlayer {
     
     // Special handling for Coursera (uses enhanced insertion with retry)
     if (hostname.includes('coursera.org')) {
-      console.log('[TopPlayer] Detected Coursera site, using robust insertion');
+      logger.info('Detected Coursera site, using robust insertion');
       insertForCoursera(player);
     } else if (isNewsSite(hostname)) {
       // Special handling for news sites
-      console.log('[TopPlayer] Detected news site');
+      logger.info('Detected news site');
       insertForNewsSite(player);
     } else {
       // Default approach: find a suitable H1 or content container
-      console.log('[TopPlayer] Using default insertion');
+      logger.info('Using default insertion');
       insertDefault(player);
     }
     
@@ -196,7 +200,7 @@ export class TopPlayer {
     
     // Listen for toggle-panel event (from the dropdown settings option)
     document.addEventListener('toggle-panel', () => {
-      console.log('[TopPlayer] Received toggle-panel event');
+      logger.info('Received toggle-panel event');
       // Dispatch an event that the parent content script can listen for
       const event = new CustomEvent('open-panel');
       document.dispatchEvent(event);
@@ -204,12 +208,12 @@ export class TopPlayer {
     
     // Extract page text after a short delay to ensure the DOM is settled
     setTimeout(() => {
-      console.log('[TopPlayer] Extracting page text');
+      logger.info('Extracting page text');
       extractPageText(this);
       
       // If no paragraphs were found, try again with a different approach
       if (this.paragraphs.length === 0) {
-        console.debug('[TopPlayer] Using fallback extraction method');
+        logger.debug('Using fallback extraction method');
         // Use a simpler but more aggressive extraction method
         fallbackTextExtraction(this);
       }
@@ -219,15 +223,15 @@ export class TopPlayer {
     setTimeout(() => {
       chrome.storage.local.get(['topPlayerEnabled'], (result) => {
         const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
-        console.log(`[TopPlayer] Double-checking visibility: should be ${isVisible ? 'visible' : 'hidden'}`);
+        logger.info(`Double-checking visibility: should be ${isVisible ? 'visible' : 'hidden'}`);
         
         if (!isVisible && this.playerElement) {
           // If player shouldn't be visible but exists, remove it
-          console.log('[TopPlayer] Correcting visibility - removing player');
+          logger.info('Correcting visibility - removing player');
           this.remove();
         } else if (isVisible && !this.playerElement) {
           // If player should be visible but doesn't exist, recreate it
-          console.log('[TopPlayer] Correcting visibility - showing player');
+          logger.info('Correcting visibility - showing player');
           this.show();
         }
       });
@@ -264,11 +268,11 @@ export class TopPlayer {
         this.settingsDropdown = new SettingsDropdown({
           buttonElement: settingsButton as HTMLElement,
           onSettingsClick: () => {
-            console.log('Top Player: Settings clicked');
+            logger.info('Settings clicked');
             // You would typically open settings here
           },
           onHidePlayerClick: () => {
-            console.log('Top Player: Hide player clicked');
+            logger.info('Hide player clicked');
             this.hide();
           },
           onClose: () => {
@@ -364,20 +368,20 @@ export class TopPlayer {
   
   // Start playback of the current paragraph and set up to continue to the next
   private async startPlayback(): Promise<void> {
-    console.log(`[TopPlayer] startPlayback called, paragraphs length: ${this.paragraphs.length}`);
+    logger.info(`startPlayback called, paragraphs length: ${this.paragraphs.length}`);
     
     // Check if we have paragraphs
     if (this.paragraphs.length === 0) {
-      console.warn('[TopPlayer] No paragraphs available for playback');
+      logger.warn('No paragraphs available for playback');
       // Try re-extracting text content
       extractPageText(this);
       
       // Check again after re-extraction
       if (this.paragraphs.length === 0) {
-        console.error('[TopPlayer] Still no paragraphs after re-extraction, cannot proceed');
+        logger.error('Still no paragraphs after re-extraction, cannot proceed');
         return;
       } else {
-        console.log(`[TopPlayer] Successfully extracted ${this.paragraphs.length} paragraphs after retry`);
+        logger.info(`Successfully extracted ${this.paragraphs.length} paragraphs after retry`);
       }
     }
     
@@ -396,7 +400,7 @@ export class TopPlayer {
       if (currentText.length > this.MAX_CHUNK_LENGTH) {
         // Split the text into chunks
         const chunks = chunkText(currentText, this.MAX_CHUNK_LENGTH);
-        console.log(`[TopPlayer] Text too long (${currentText.length} chars), split into ${chunks.length} chunks`);
+        logger.info(`Text too long (${currentText.length} chars), split into ${chunks.length} chunks`);
         
         // Store chunks for the current paragraph
         this.currentParagraphChunks = chunks;
@@ -406,12 +410,12 @@ export class TopPlayer {
         this.playChunk();
       } else {
         // Normal playback for reasonable length paragraphs
-        console.log(`[TopPlayer] Starting playback of paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}:`, { 
+        logger.info(`Starting playback of paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}: ${JSON.stringify({ 
           textPreview: currentText.substring(0, 50) + '...',
           textLength: currentText.length, 
           voiceId,
           modelId 
-        });
+        })}`);
         
         // Set up callback for playback end to move to next paragraph
         this.audioPlayer.setCallbacks({
@@ -425,7 +429,7 @@ export class TopPlayer {
         await this.audioPlayer.playText(currentText, voiceId, modelId);
       }
     } catch (error) {
-      console.error('[TopPlayer] Error starting playback:', error);
+      logger.error(`Error starting playback: ${error}`);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
     }
   }
@@ -436,20 +440,20 @@ export class TopPlayer {
   private playChunk(): void {
     if (this.currentChunkIndex >= this.currentParagraphChunks.length) {
       // We've played all chunks, move to the next paragraph
-      console.log('[TopPlayer] All chunks played, moving to next paragraph');
+      logger.info('All chunks played, moving to next paragraph');
       this.handleParagraphEnd();
       return;
     }
     
     const chunk = this.currentParagraphChunks[this.currentChunkIndex];
-    console.log(`[TopPlayer] Playing chunk ${this.currentChunkIndex + 1}/${this.currentParagraphChunks.length}, length: ${chunk.length}`);
+    logger.info(`Playing chunk ${this.currentChunkIndex + 1}/${this.currentParagraphChunks.length}, length: ${chunk.length}`);
     
     // Track the position in the original text for this chunk
     const overallPosition = this.currentParagraphChunks
       .slice(0, this.currentChunkIndex)
       .reduce((sum, chunkText) => sum + chunkText.length, 0);
     
-    console.log(`[TopPlayer] Starting from character position ${overallPosition} in the complete text`);
+    logger.info(`Starting from character position ${overallPosition} in the complete text`);
     
     // Set up callback to play the next chunk when this one finishes
     this.audioPlayer.setCallbacks({
@@ -462,7 +466,7 @@ export class TopPlayer {
     // Play this chunk
     this.audioPlayer.playText(chunk, this.defaultVoiceId, this.defaultModelId)
       .catch(error => {
-        console.error('[TopPlayer] Error playing chunk:', error);
+        logger.error(`Error playing chunk: ${error}`);
         this.handlePlaybackError(`Chunk playback error: ${error}`);
       });
   }
@@ -471,7 +475,7 @@ export class TopPlayer {
    * Handle the end of a chunk playback
    */
   private handleChunkEnd(): void {
-    console.log('[TopPlayer] Chunk playback ended');
+    logger.info('Chunk playback ended');
     
     // Get the current chunk for logging
     const currentChunk = this.currentParagraphChunks[this.currentChunkIndex];
@@ -484,7 +488,7 @@ export class TopPlayer {
       .slice(0, this.currentChunkIndex)
       .reduce((sum, chunkText) => sum + chunkText.length, 0);
     
-    console.log(`[TopPlayer] Moving to next chunk at position ${nextChunkPosition}, completed chunk length: ${currentChunk.length}`);
+    logger.info(`Moving to next chunk at position ${nextChunkPosition}, completed chunk length: ${currentChunk.length}`);
     
     // Play the next chunk immediately to ensure continuous playback
     // Using a minimal delay to prevent potential buffer issues
@@ -495,7 +499,7 @@ export class TopPlayer {
   
   // Handle end of paragraph playback
   private handleParagraphEnd(): void {
-    console.log('[TopPlayer] Paragraph playback ended');
+    logger.info('Paragraph playback ended');
     
     // Move to next paragraph
     this.currentParagraphIndex++;
@@ -506,12 +510,12 @@ export class TopPlayer {
       this.isPlaying = false;
       this.setState('play');
       this.pauseProgressAnimation();
-      console.log('[TopPlayer] Reached end of all paragraphs, stopping playback');
+      logger.info('Reached end of all paragraphs, stopping playback');
       return;
     }
     
     // Continue with next paragraph
-    console.log(`[TopPlayer] Moving to paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}`);
+    logger.info(`Moving to paragraph ${this.currentParagraphIndex + 1}/${this.paragraphs.length}`);
     this.startPlayback();
   }
   
@@ -535,7 +539,7 @@ export class TopPlayer {
       // This ensures we always use the most recently selected voice
       if (this.defaultVoiceId !== '21m00Tcm4TlvDq8ikWAM') {
         // Log that we're using the voice ID from recent selection
-        console.log('[TopPlayer] Using voice ID from most recent selection:', this.defaultVoiceId);
+        logger.info(`Using voice ID from most recent selection: ${this.defaultVoiceId}`);
         return this.defaultVoiceId;
       }
       
@@ -543,18 +547,18 @@ export class TopPlayer {
       return new Promise<string>((resolve) => {
         chrome.storage.local.get(['selectedVoiceId'], (result) => {
           if (result && result.selectedVoiceId) {
-            console.log('[TopPlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
+            logger.info(`Retrieved voice ID from storage: ${result.selectedVoiceId}`);
             // Update our cached voice ID for future use
             this.defaultVoiceId = result.selectedVoiceId;
             resolve(result.selectedVoiceId);
           } else {
-            console.log('[TopPlayer] No voice ID in storage, using default:', this.defaultVoiceId);
+            logger.info(`No voice ID in storage, using default: ${this.defaultVoiceId}`);
             resolve(this.defaultVoiceId);
           }
         });
       });
     } catch (error) {
-      console.error('[TopPlayer] Error getting selected voice:', error);
+      logger.error(`Error getting selected voice: ${error}`);
       return this.defaultVoiceId;
     }
   }
@@ -579,7 +583,7 @@ export class TopPlayer {
   }
   
   public hide(): void {
-    console.log('📖 [TopPlayer] Hiding top player');
+    logger.info('Hiding top player');
     
     if (!this.playerElement) return;
     
@@ -598,7 +602,7 @@ export class TopPlayer {
   }
   
   public show(): void {
-    console.log('📖 [TopPlayer] Showing top player');
+    logger.info('Showing top player');
     
     if (!this.playerElement) {
       this.create();

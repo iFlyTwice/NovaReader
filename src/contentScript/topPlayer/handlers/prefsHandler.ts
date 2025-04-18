@@ -4,6 +4,10 @@
  */
 
 import { getUser, getUserPreferences } from '../../../supabase/client';
+import { createLogger } from '../../../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('TopPlayerPrefs');
 
 /**
  * Initialize the top player preferences
@@ -46,12 +50,12 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
       // Dispatch event to update top player visibility
       dispatchVisibilityEvent(topPlayerEnabled);
       
-      console.log(`[TopPlayerPrefs] Initialized top player visibility: ${topPlayerEnabled ? 'visible' : 'hidden'}`);
+      logger.info(`Initialized top player visibility: ${topPlayerEnabled ? 'visible' : 'hidden'}`);
     });
     
     // Add a listener for page load to ensure the top player is created
     window.addEventListener('DOMContentLoaded', () => {
-      console.log('[TopPlayerPrefs] DOMContentLoaded event fired');
+      logger.info('DOMContentLoaded event fired');
       chrome.storage.local.get(['topPlayerEnabled'], (result) => {
         const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
         dispatchVisibilityEvent(isVisible);
@@ -60,7 +64,7 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
     
     // Add another listener for the load event
     window.addEventListener('load', () => {
-      console.log('[TopPlayerPrefs] Window load event fired');
+      logger.info('Window load event fired');
       chrome.storage.local.get(['topPlayerEnabled'], (result) => {
         const isVisible = result.topPlayerEnabled !== undefined ? result.topPlayerEnabled : true;
         dispatchVisibilityEvent(isVisible);
@@ -75,7 +79,7 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
         // Dispatch event to update top player visibility
         dispatchVisibilityEvent(newValue);
         
-        console.log(`[TopPlayerPrefs] Top player visibility changed: ${newValue ? 'visible' : 'hidden'}`);
+        logger.info(`Top player visibility changed: ${newValue ? 'visible' : 'hidden'}`);
       }
     });
     
@@ -87,6 +91,6 @@ export const initializeTopPlayerPrefs = async (): Promise<void> => {
       document.dispatchEvent(event);
     }
   } catch (error) {
-    console.error('[TopPlayerPrefs] Error initializing top player preferences:', error);
+    logger.error(`Error initializing top player preferences: ${error}`);
   }
 };

@@ -6,6 +6,10 @@ import { SelectionButton } from './selectionButton';
 import { TopPlayer } from './topPlayer/TopPlayer';
 import { addKeyboardShortcuts, ICONS } from './utils';
 import { initializeTopPlayerPrefs } from './topPlayer/handlers/prefsHandler';
+import { createLogger } from '../utils/logger';
+
+// Create a logger instance for this module
+const logger = createLogger('Extension');
 
 // Import global CSS files to help Vite track dependencies
 import '../../css/fonts.css';
@@ -26,7 +30,10 @@ class ExtensionController {
   private stylerClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
-    console.info('ContentScript is running');
+    logger.info('ContentScript is running');
+    
+    // Preload voices to avoid lag when opening the voice selector
+    this.preloadVoices();
     
     // Initialize components in the right order
     this.player = new SidePlayer();
@@ -55,6 +62,16 @@ class ExtensionController {
     
     // Listen for voice style changes and update player
     this.setupVoiceStyleChangeListener();
+  }
+  
+  /**
+   * Preload voices to avoid lag when opening the voice selector
+   */
+  private preloadVoices(): void {
+    // Call the static preloadVoices method on VoiceSelector
+    VoiceSelector.preloadVoices().catch(error => {
+      logger.error(`Error preloading voices: ${error}`);
+    });
     
     // Create the side player immediately
     setTimeout(() => {
@@ -67,7 +84,7 @@ class ExtensionController {
         chrome.storage.local.get(['topPlayerEnabled'], (result) => {
           // If the setting is explicitly false, don't create the top player
           if (result.topPlayerEnabled === false) {
-            console.log('📖 [TopPlayer] Not creating top player as it is disabled in settings');
+            logger.info('Not creating top player as it is disabled in settings');
             return;
           }
           
@@ -103,17 +120,17 @@ class ExtensionController {
       if (config.SPEECHIFY_API_KEY) {
         chrome.storage.local.get(['speechifyApiKey'], (result) => {
           if (!result.speechifyApiKey) {
-            console.log('Setting API key in storage from config');
+            logger.info('Setting API key in storage from config');
             chrome.storage.local.set({ 
               speechifyApiKey: config.SPEECHIFY_API_KEY,
               selectedVoiceId: config.DEFAULT_SPEECHIFY_VOICE_ID
             });
           } else {
-            console.log('API key already exists in storage');
+            logger.info('API key already exists in storage');
           }
         });
       } else {
-        console.error('No API key found in config!');
+        logger.error('No API key found in config!');
       }
     });
   }
@@ -132,7 +149,7 @@ class ExtensionController {
       
       // Update the player with the new style
       if (this.player && typeof (this.player as any).setSSMLStyle === 'function') {
-        console.log('[Controller] Updating player with new style:', { emotion, cadence });
+        logger.info(`Updating player with new style: ${JSON.stringify({ emotion, cadence })}`);
         (this.player as any).setSSMLStyle({ emotion, cadence });
       }
     });
@@ -199,7 +216,7 @@ class ExtensionController {
     this.voiceSelector.create(this.isPanelOpen);
     this.isVoiceSelectorOpen = true;
     
-    console.log(`Voice selector created. Panel open: ${this.isPanelOpen}`);
+    logger.info(`Voice selector created. Panel open: ${this.isPanelOpen}`);
     
     // Clean up any existing listener first
     if (this.documentClickListener) {
@@ -285,7 +302,7 @@ class ExtensionController {
     this.voiceStyler.show();
     this.isVoiceStylerOpen = true;
     
-    console.log(`Voice styler shown. Panel open: ${this.isPanelOpen}`);
+    logger.info(`Voice styler shown. Panel open: ${this.isPanelOpen}`);
     
     // Clean up any existing listener first
     if (this.stylerClickListener) {
@@ -393,7 +410,7 @@ class ExtensionController {
           voiceSelector.classList.remove('panel-open');
         }, 50);
       }
-      console.log(`Voice selector position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
+      logger.info(`Voice selector position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
     }
     
     // If voice styler is open, update its position
@@ -407,7 +424,7 @@ class ExtensionController {
           voiceStyler.classList.remove('panel-open');
         }, 50);
       }
-      console.log(`Voice styler position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
+      logger.info(`Voice styler position updated from togglePanel. Panel open: ${this.isPanelOpen}`);
     }
   }
   

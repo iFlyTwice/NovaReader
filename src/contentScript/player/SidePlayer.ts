@@ -73,6 +73,9 @@ export class SidePlayer {
   private defaultVoiceId: string = 'en-US-Neural2-F'; // Speechify female voice
   private defaultModelId: string = 'simba-english'; // Speechify model
 
+  private currentSpeed: number = 1.0; // Add this property to track current speed
+  private speedButton: HTMLElement | null = null; // Add this property to store speed button reference
+
   constructor() {
     // Initialize the audio player
     this.audioPlayer = new AudioStreamPlayer();
@@ -100,6 +103,9 @@ export class SidePlayer {
     
     // Import compact mode CSS
     this.importCompactModeCSS();
+    
+    // Load saved playback speed
+    this.loadPlaybackSpeed();
     
     logger.info('Initialized and ready');
   }
@@ -431,6 +437,29 @@ export class SidePlayer {
     });
     this.playButton = playButton;
     
+    // Add speed button
+    const speedButton = document.createElement('div');
+    speedButton.className = 'speed-button';
+    speedButton.textContent = '1.0x';
+    speedButton.title = 'Playback Speed';
+    speedButton.addEventListener('click', () => {
+      // Cycle through speeds: 1.0 -> 1.5 -> 2.0 -> 0.5 -> 0.75 -> back to 1.0
+      const speeds = [1.0, 1.5, 2.0, 0.5, 0.75];
+      const currentIndex = speeds.indexOf(this.currentSpeed);
+      const nextIndex = (currentIndex + 1) % speeds.length;
+      const newSpeed = speeds[nextIndex];
+      
+      // Update speed
+      this.setPlaybackSpeed(newSpeed);
+      
+      // Update button text
+      speedButton.textContent = `${newSpeed}x`;
+      
+      // Add visual feedback
+      addClickEffect(speedButton);
+    });
+    this.speedButton = speedButton;
+    
     // Highlighting button
     const highlightButton = createButton(ICONS.highlight || '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zm0 7h10a1 1 0 0 1 0 2H11a1 1 0 1 1 0-2zM3 4h2v16H3V4z"></path></svg>', 'Toggle Highlighting', () => {
       logger.info('Highlight button clicked');
@@ -573,7 +602,8 @@ export class SidePlayer {
     // Append all elements to player in the order shown in the screenshot
     player.appendChild(timeDisplay);
     player.appendChild(playButton);
-    player.appendChild(dividerAfterPlay); // Add divider after play button
+    player.appendChild(speedButton); // Add speed button after play button
+    player.appendChild(dividerAfterPlay);
     player.appendChild(highlightButton);
     player.appendChild(styleButton); // Add new style button
     player.appendChild(selectVoiceButton);
@@ -709,9 +739,31 @@ export class SidePlayer {
     this.audioPlayer.stopPlayback();
   }
   
-  // Set playback speed (could be connected to a speed control in UI)
+  // Override the existing setPlaybackSpeed method
   public setPlaybackSpeed(speed: number): void {
+    this.currentSpeed = speed;
     this.audioPlayer.setPlaybackSpeed(speed);
+    
+    // Update button text if it exists
+    if (this.speedButton) {
+      this.speedButton.textContent = `${speed}x`;
+    }
+    
+    // Save speed preference to storage
+    chrome.storage.local.set({ playerSpeed: speed }, () => {
+      logger.info(`Playback speed saved: ${speed}x`);
+    });
+  }
+  
+  /**
+   * Load saved playback speed from storage
+   */
+  private loadPlaybackSpeed(): void {
+    chrome.storage.local.get(['playerSpeed'], (result) => {
+      if (result.playerSpeed) {
+        this.setPlaybackSpeed(result.playerSpeed);
+      }
+    });
   }
   
   // Method to handle selection button events

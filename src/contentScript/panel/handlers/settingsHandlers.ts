@@ -19,6 +19,7 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
     // Playback settings
     const speedSlider = panel.querySelector('#speed-slider') as HTMLInputElement;
     const speedValue = panel.querySelector('#speed-value') as HTMLElement;
+    const playerHighlightToggle = panel.querySelector('#player-highlight-toggle') as HTMLInputElement;
     
     // UI settings
     const topPlayerToggle = panel.querySelector('#top-player-toggle') as HTMLInputElement;
@@ -35,6 +36,7 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
       'speechifyModel',
       'playbackSpeed',
       'highlightEnabled',
+      'playerHighlightingEnabled',
       'selectionButtonColor',
       'topPlayerEnabled'
     ], (result) => {
@@ -58,6 +60,14 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
       if (result.playbackSpeed && speedSlider && speedValue) {
         speedSlider.value = result.playbackSpeed.toString();
         speedValue.textContent = `${result.playbackSpeed}x`;
+      }
+      
+      // Player highlight toggle
+      if (playerHighlightToggle) {
+        // Default to enabled if not set
+        const playerHighlightingEnabled = result.playerHighlightingEnabled !== undefined ? result.playerHighlightingEnabled : true;
+        playerHighlightToggle.checked = playerHighlightingEnabled;
+        console.log(`[Panel] Loaded player highlighting state: ${playerHighlightingEnabled ? 'enabled' : 'disabled'}`);
       }
       
       // Highlight toggle
@@ -131,6 +141,22 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
         const speed = parseFloat(speedSlider.value);
         speedValue.textContent = `${speed.toFixed(1)}x`;
         chrome.storage.local.set({ playbackSpeed: speed });
+      });
+    }
+    
+    // Player highlight toggle
+    if (playerHighlightToggle) {
+      playerHighlightToggle.addEventListener('change', () => {
+        const isEnabled = playerHighlightToggle.checked;
+        console.log(`[Panel] Player highlighting toggle changed to: ${isEnabled ? 'enabled' : 'disabled'}`);
+        
+        // Immediately update the UI to match
+        playerHighlightToggle.checked = isEnabled;
+        
+        // Save to storage with callback to ensure it's saved
+        chrome.storage.local.set({ playerHighlightingEnabled: isEnabled }, () => {
+          console.log(`[Panel] Player highlighting saved to storage: ${isEnabled ? 'enabled' : 'disabled'}`);
+        });
       });
     }
     
@@ -208,6 +234,7 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
         // Default values
         const defaults = {
           highlightEnabled: true,
+          playerHighlightingEnabled: true, // Add the player highlighting setting
           selectionButtonColor: '#27272a',
           topPlayerEnabled: true
         };
@@ -218,6 +245,7 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
           
           // Update UI elements
           if (highlightToggle) highlightToggle.checked = defaults.highlightEnabled;
+          if (playerHighlightToggle) playerHighlightToggle.checked = defaults.playerHighlightingEnabled;
           if (selectionColorPicker) selectionColorPicker.value = defaults.selectionButtonColor;
           if (colorPreview) colorPreview.style.backgroundColor = defaults.selectionButtonColor;
           if (topPlayerToggle) topPlayerToggle.checked = defaults.topPlayerEnabled;

@@ -30,7 +30,8 @@ export class VoiceSelector {
     { id: SPEECHIFY_VOICE_IDS.David, name: 'David', gender: 'Male', accent: 'American' },
     { id: SPEECHIFY_VOICE_IDS.Emma, name: 'Emma', gender: 'Female', accent: 'British' },
     { id: SPEECHIFY_VOICE_IDS.James, name: 'James', gender: 'Male', accent: 'British' },
-    { id: SPEECHIFY_VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' }
+    { id: SPEECHIFY_VOICE_IDS.Sofia, name: 'Sofia', gender: 'Female', accent: 'American' },
+    { id: 'henry', name: 'Henry', gender: 'Male', accent: 'American' }
   ];
   
   constructor() {
@@ -42,6 +43,77 @@ export class VoiceSelector {
       this.voices = cachedVoices;
     }
     // Don't load voices here - they will be loaded by preloadVoices() called from ExtensionController
+    
+    // Listen for voice verification events
+    document.addEventListener('voice-id-verified', this.handleVoiceVerification.bind(this));
+  }
+  
+  /**
+   * Handle voice verification events
+   * @param event The voice verification event
+   */
+  private handleVoiceVerification(event: any): void {
+    if (!event.detail) return;
+    
+    const { voiceId, voiceName, voiceDetails } = event.detail;
+    logger.info(`Voice verified: ${voiceName} (${voiceId})`);
+    
+    // Update the current voice display if the selector is visible
+    if (this.selectorElement) {
+      updateCurrentVoiceDisplay(voiceName, voiceDetails, 'speechify');
+      
+      // Check if the voice option exists in the list
+      let voiceOption = document.querySelector(`.voice-option[data-voice-id="${voiceId}"]`);
+      
+      // If the voice option doesn't exist, create it
+      if (!voiceOption) {
+        logger.info(`Creating missing voice option for ${voiceName} (${voiceId})`);
+        
+        // Parse gender and accent from voiceDetails
+        let gender = 'Unknown';
+        let accent = 'Unknown';
+        
+        if (voiceDetails) {
+          const parts = voiceDetails.split('•');
+          if (parts.length > 0) gender = parts[0].trim();
+          if (parts.length > 1) accent = parts[1].trim();
+        }
+        
+        // Create a new voice object
+        const voice: Voice = {
+          id: voiceId,
+          name: voiceName,
+          gender,
+          accent
+        };
+        
+        // Add to our voices array if not already there
+        if (!this.voices.some(v => v.id === voiceId)) {
+          this.voices.push(voice);
+        }
+        
+        // Create the voice option element
+        const newVoiceOption = createVoiceOption(voice, this.addClickEffect);
+        
+        // Add to the voice list
+        const voiceList = document.querySelector('.voice-selector-list');
+        if (voiceList) {
+          voiceList.appendChild(newVoiceOption);
+          voiceOption = newVoiceOption;
+        }
+      }
+      
+      // Now highlight the voice option (whether it existed or we just created it)
+      if (voiceOption) {
+        // Remove active class from all options
+        document.querySelectorAll('.voice-option').forEach(el => {
+          el.classList.remove('active');
+        });
+        
+        // Add active class to the selected option
+        voiceOption.classList.add('active');
+      }
+    }
   }
   
   /**

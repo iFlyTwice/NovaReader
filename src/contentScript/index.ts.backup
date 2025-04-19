@@ -32,19 +32,6 @@ class ExtensionController {
   constructor() {
     logger.info('ContentScript is running');
     
-    // Add font styles to ensure they load before any UI components
-    const style = document.createElement('style');
-    style.textContent = `
-      @font-face {
-        font-family: 'Heiback';
-        src: url('${chrome.runtime.getURL('fonts/Heiback.otf')}') format('opentype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
-    `;
-    document.head.appendChild(style);
-    
     // Preload voices to avoid lag when opening the voice selector
     this.preloadVoices();
     
@@ -598,3 +585,4 @@ class ExtensionController {
 
 // Initialize the controller
 const controller = new ExtensionController();
+

@@ -92,6 +92,29 @@ export class SidePlayer {
       onTimeUpdate: (currentTime, duration) => this.updateTimeDisplay(currentTime, duration)
     });
     
+    // Load the highlighting state from storage
+    this.loadHighlightingState();
+    
+    // Listen for changes to the highlighting state in storage
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.playerHighlightingEnabled) {
+        const newValue = changes.playerHighlightingEnabled.newValue;
+        if (this.highlightingEnabled !== newValue) {
+          logger.info(`Player highlighting state changed in storage: ${newValue}`);
+          this.highlightingEnabled = newValue;
+          
+          // Update the highlight button if it exists
+          if (this.highlightButton) {
+            if (this.highlightingEnabled) {
+              this.highlightButton.classList.add('active');
+            } else {
+              this.highlightButton.classList.remove('active');
+            }
+          }
+        }
+      }
+    });
+    
     // Set up listener to ensure player is visible before playback
     this.setupEnsurePlayerVisibleListener();
     
@@ -108,6 +131,18 @@ export class SidePlayer {
     this.loadPlaybackSpeed();
     
     logger.info('Initialized and ready');
+  }
+  
+  /**
+   * Load highlighting state from storage
+   */
+  private loadHighlightingState(): void {
+    chrome.storage.local.get(['playerHighlightingEnabled'], (result) => {
+      if (result.playerHighlightingEnabled !== undefined) {
+        this.highlightingEnabled = result.playerHighlightingEnabled;
+        logger.info(`Loaded player highlighting state from storage: ${this.highlightingEnabled}`);
+      }
+    });
   }
   
   /**
@@ -209,6 +244,11 @@ export class SidePlayer {
         this.textHighlighter.cleanup();
       }
     }
+    
+    // Save highlighting state to storage
+    chrome.storage.local.set({ playerHighlightingEnabled: this.highlightingEnabled }, () => {
+      logger.info(`Player highlighting state saved to storage: ${this.highlightingEnabled}`);
+    });
     
     logger.info(`Text highlighting toggled: ${this.highlightingEnabled}`);
   }

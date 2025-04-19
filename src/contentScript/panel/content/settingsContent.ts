@@ -58,6 +58,16 @@ export function getSettingsContent(): string {
           <label class="form-label">Playback Speed: <span id="speed-value">1.0x</span></label>
           <input type="range" min="0.5" max="2" step="0.1" value="1" id="speed-slider" class="form-control" />
         </div>
+        
+        <!-- Toggle for text highlighting during playback -->
+        <div class="switch-container">
+          <span class="switch-label">Text highlighting during playback</span>
+          <label class="switch">
+            <input type="checkbox" id="player-highlight-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="small-text">Highlights the current text being read aloud in the player.</p>
       </div>
     </div>
     

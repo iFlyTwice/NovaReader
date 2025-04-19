@@ -4,15 +4,16 @@
 // API keys from .env file
 export const SPEECHIFY_API_KEY: string = "NOQc8pt7Gr4UvJDM49z2UxHHgpUh4ymh4ukg5A8AQ9s="; // Speechify API key
 
-// Default Speechify voice ID
-export const DEFAULT_SPEECHIFY_VOICE_ID: string = "en-US-Neural2-F"; // Default Speechify voice ID
+// Default Speechify voice ID - updated to new format
+export const DEFAULT_SPEECHIFY_VOICE_ID: string = "emma"; // Default Speechify voice ID
 
-// Speechify voice IDs mapped to UI names
+// Speechify voice IDs mapped to UI names - updated to new format
 export const SPEECHIFY_VOICE_IDS: Record<string, string> = {
-  "David": "en-US-Neural2-J", 
-  "Emma": "en-US-Neural2-F",
-  "James": "en-US-Neural2-D",
-  "Sofia": "en-US-Neural2-E"
+  "David": "david", 
+  "Emma": "emma",
+  "James": "james",
+  "Henry": "henry",
+  "Sofia": "sofia"
 };
 
 // Model IDs

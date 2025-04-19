@@ -379,19 +379,23 @@
 }
 
 .voice-play-button.loading {
-  background-color: rgba(86, 100, 210, 0.3);
+  background-color: #5664d2;
   animation: pulse 1.5s infinite;
+  cursor: default;
 }
 
 @keyframes pulse {
   0% {
     opacity: 1;
+    transform: translateY(-50%) scale(1);
   }
   50% {
     opacity: 0.6;
+    transform: translateY(-50%) scale(0.95);
   }
   100% {
     opacity: 1;
+    transform: translateY(-50%) scale(1);
   }
 }
 
@@ -548,6 +552,11 @@
     background-color: rgba(0, 0, 0, 0.1);
   }
   
+  .voice-play-button.loading {
+    background-color: #5664d2;
+    color: white;
+  }
+  
   .selector-button {
     color: #333;
   }
@@ -555,4 +564,18 @@
   .selector-button:hover {
     background-color: rgba(0, 0, 0, 0.05);
   }
+}
+
+/* Spinning animation for loading state */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

@@ -45,18 +45,17 @@ export async function getSelectedVoice(defaultVoiceId: string): Promise<string> 
           console.log('[SidePlayer] Retrieved voice ID from storage:', result.selectedVoiceId);
           resolve(result.selectedVoiceId);
         } else {
-          // Use Henry (or another Speechify voice) as fallback if no voice is in storage
-          // This is more reliable than using a potentially incompatible default
-          const henryVoiceId = SPEECHIFY_VOICE_IDS.David || 'en-US-Neural2-J';
-          console.log('[SidePlayer] No voice ID in storage, using Henry voice:', henryVoiceId);
-          resolve(henryVoiceId);
+          // Use Henry voice as fallback if no voice is in storage
+          // Using the new simpler voice ID format that works with the current API
+          const fallbackVoiceId = 'henry';
+          console.log('[SidePlayer] No voice ID in storage, using fallback voice:', fallbackVoiceId);
+          resolve(fallbackVoiceId);
         }
       });
     });
   } catch (error) {
     console.error('[SidePlayer] Error getting selected voice:', error);
-    // Fallback to Henry voice if there's an error
-    const henryVoiceId = SPEECHIFY_VOICE_IDS.David || 'en-US-Neural2-J';
-    return henryVoiceId;
+    // Fallback to Henry voice if there's an error (using new format)
+    return 'henry';
   }
 }

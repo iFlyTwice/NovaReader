@@ -83,16 +83,9 @@ export class SidePanel {
     const panelWrapper = document.createElement('div');
     panelWrapper.className = 'nova-reader-panel-wrapper';
     
-    // Add font styles directly to ensure they load
+    // Add panel-specific styles
     const style = document.createElement('style');
     style.textContent = `
-      @font-face {
-        font-family: 'Heiback';
-        src: url('${chrome.runtime.getURL('fonts/Heiback.otf')}') format('opentype');
-        font-weight: normal;
-        font-style: normal;
-      }
-      
       /* Extra styles to ensure consistent rendering */
       #${this.panelId} * {
         box-sizing: border-box !important;

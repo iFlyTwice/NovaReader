@@ -134,9 +134,10 @@ export class VoiceStyler {
     // Store panel state
     this.isPanelOpen = isPanelOpen;
     
-    // Create styler container
+    // Create styler container with fixed size
     const styler = document.createElement('div');
     styler.id = this.stylerId;
+    styler.style.height = '500px'; // Force fixed height in JS
     
     // If panel is open, add panel-open class for additional positioning
     if (isPanelOpen) {
@@ -160,12 +161,17 @@ export class VoiceStyler {
     const header = document.createElement('div');
     header.className = 'voice-selector-header';
     
-    // Create emotions section
+    // Create scrollable content container
+    const content = document.createElement('div');
+    content.className = 'voice-styler-content';
+    
+    // Create emotions section (keep section more compact)
     const emotionsSection = document.createElement('div');
     emotionsSection.className = 'styler-section';
     
     const emotionsTitle = document.createElement('h3');
     emotionsTitle.textContent = 'Emotion';
+    emotionsTitle.style.marginBottom = '8px'; // Reduce spacing
     emotionsSection.appendChild(emotionsTitle);
     
     // Create emotions list
@@ -200,12 +206,13 @@ export class VoiceStyler {
     
     emotionsSection.appendChild(emotionsList);
     
-    // Create cadences section
+    // Create cadences section (keep section more compact)
     const cadencesSection = document.createElement('div');
     cadencesSection.className = 'styler-section';
     
     const cadencesTitle = document.createElement('h3');
     cadencesTitle.textContent = 'Speed';
+    cadencesTitle.style.marginBottom = '8px'; // Reduce spacing
     cadencesSection.appendChild(cadencesTitle);
     
     // Create cadences list
@@ -240,7 +247,15 @@ export class VoiceStyler {
     
     cadencesSection.appendChild(cadencesList);
     
-    // Add save button
+    // Build the UI structure
+    styler.appendChild(topHeader);
+    styler.appendChild(header);
+    
+    // Add sections to the scrollable content
+    content.appendChild(emotionsSection);
+    content.appendChild(cadencesSection);
+    
+    // Create save button
     const saveButton = document.createElement('div');
     saveButton.className = 'voice-selector-save-button';
     saveButton.textContent = 'Save Selection';
@@ -248,31 +263,21 @@ export class VoiceStyler {
       // Save the current selection
       saveStyleToStorage(this.currentEmotion, this.currentCadence);
       
-      // Dispatch event to notify other components
+      // Dispatch event to notify of style change
       dispatchStyleChangeEvent(this.currentEmotion, this.currentCadence);
       
-      // Add visual feedback for save button
-      saveButton.textContent = 'Selection Saved!';
-      setTimeout(() => {
-        saveButton.textContent = 'Save Selection';
-      }, 1500);
+      // Hide the styler
+      this.hide();
     });
     
-    // Add model info note
-    const infoNote = document.createElement('div');
-    infoNote.className = 'styler-info-note';
-    infoNote.textContent = 'Note: Speed control requires the simba-turbo model';
-    
-    // Append all elements to styler
-    styler.appendChild(topHeader);
-    styler.appendChild(header);
-    styler.appendChild(emotionsSection);
-    styler.appendChild(cadencesSection);
+    // Add content and save button to the main container
+    styler.appendChild(content);
     styler.appendChild(saveButton);
-    styler.appendChild(infoNote);
     
-    // Add styler to page
+    // Append to DOM
     document.body.appendChild(styler);
+    
+    // Store reference
     this.stylerElement = styler;
   }
   
@@ -284,7 +289,7 @@ export class VoiceStyler {
     this.currentEmotion = emotionId;
     
     // Update UI
-    const emotionsList = document.querySelectorAll('.styler-section:nth-child(3) .voice-option');
+    const emotionsList = document.querySelectorAll('.styler-section:first-child .voice-option');
     emotionsList.forEach(item => {
       item.classList.remove('active');
       
@@ -311,7 +316,7 @@ export class VoiceStyler {
     this.currentCadence = cadenceId;
     
     // Update UI
-    const cadencesList = document.querySelectorAll('.styler-section:nth-child(4) .voice-option');
+    const cadencesList = document.querySelectorAll('.styler-section:nth-child(2) .voice-option');
     cadencesList.forEach(item => {
       item.classList.remove('active');
       

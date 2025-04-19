@@ -262,6 +262,117 @@ export const wrapWithSSML = (text: string, options?: SSMLStyleOptions): string =
   return wrappedText;
 };
 
+// Voice name and details mapping for new format voice IDs
+const voiceDetailsMapping: Record<string, { name: string, gender: string, accent: string }> = {
+  'emma': { name: 'Emma', gender: 'Female', accent: 'British' },
+  'david': { name: 'David', gender: 'Male', accent: 'American' },
+  'james': { name: 'James', gender: 'Male', accent: 'British' },
+  'henry': { name: 'Henry', gender: 'Male', accent: 'American' },
+  'sofia': { name: 'Sofia', gender: 'Female', accent: 'American' }
+};
+
+// Function to get the correct voice name and details for a voice ID
+export const getVoiceDetails = (voiceId: string): { name: string, gender: string, accent: string } => {
+  // If we have details for this voice ID in our mapping, return them
+  if (voiceDetailsMapping[voiceId]) {
+    return voiceDetailsMapping[voiceId];
+  }
+  
+  // Otherwise return generic details
+  return {
+    name: voiceId.charAt(0).toUpperCase() + voiceId.slice(1), // Capitalize first letter
+    gender: 'Unknown',
+    accent: 'Unknown'
+  };
+};
+
+// Verify and fix voice ID if needed
+export const verifyVoiceId = async (voiceId: string): Promise<string> => {
+  // If the voice ID is in the old format (contains 'Neural'), convert to new format
+  if (voiceId.includes('Neural')) {
+    logger.warn(`Converting old voice ID format ${voiceId} to new format`);
+    
+    // Map old format to new format
+    const oldToNewFormat: Record<string, string> = {
+      'en-US-Neural2-F': 'emma',
+      'en-US-Neural2-J': 'david',
+      'en-US-Neural2-D': 'james',
+      'en-US-Neural2-E': 'sofia'
+    };
+    
+    // Use mapped value or default to 'henry' if not found
+    const newVoiceId = oldToNewFormat[voiceId] || 'henry';
+    
+    // Get details for the new voice ID
+    const voiceDetails = getVoiceDetails(newVoiceId);
+    
+    // Save the new voice ID and details to storage for future use
+    try {
+      chrome.storage.local.set({ 
+        selectedVoiceId: newVoiceId,
+        selectedVoiceName: voiceDetails.name,
+        selectedVoiceDetails: `${voiceDetails.gender} • ${voiceDetails.accent}`,
+        ttsProvider: 'speechify'
+      });
+      logger.info(`Updated voice in storage to ${voiceDetails.name} (${newVoiceId})`);
+      
+      // Dispatch an event to notify other components of the voice change
+      const event = new CustomEvent('voice-id-verified', { 
+        detail: { 
+          voiceId: newVoiceId, 
+          voiceName: voiceDetails.name, 
+          voiceDetails: `${voiceDetails.gender} • ${voiceDetails.accent}`, 
+          provider: 'speechify' 
+        } 
+      });
+      document.dispatchEvent(event);
+    } catch (error) {
+      logger.error(`Error saving updated voice ID: ${error}`);
+    }
+    
+    return newVoiceId;
+  }
+  
+  // Check if we need to update the voice name for an existing voice ID
+  // This ensures the name always matches the ID
+  try {
+    chrome.storage.local.get(['selectedVoiceId', 'selectedVoiceName'], (result) => {
+      // If we have a voice ID in storage and it matches the current voice ID
+      if (result.selectedVoiceId === voiceId) {
+        // Get the correct details for this voice ID
+        const voiceDetails = getVoiceDetails(voiceId);
+        
+        // If the stored name doesn't match the correct name for this ID
+        if (result.selectedVoiceName !== voiceDetails.name) {
+          logger.warn(`Voice name mismatch detected: ID=${voiceId}, stored name=${result.selectedVoiceName}, correct name=${voiceDetails.name}`);
+          
+          // Update the storage with the correct name
+          chrome.storage.local.set({
+            selectedVoiceName: voiceDetails.name,
+            selectedVoiceDetails: `${voiceDetails.gender} • ${voiceDetails.accent}`
+          });
+          
+          // Dispatch an event to notify other components
+          const event = new CustomEvent('voice-id-verified', { 
+            detail: { 
+              voiceId: voiceId, 
+              voiceName: voiceDetails.name, 
+              voiceDetails: `${voiceDetails.gender} • ${voiceDetails.accent}`, 
+              provider: 'speechify' 
+            } 
+          });
+          document.dispatchEvent(event);
+        }
+      }
+    });
+  } catch (error) {
+    logger.error(`Error checking voice name consistency: ${error}`);
+  }
+  
+  // If the voice ID is already in the new format, return it unchanged
+  return voiceId;
+};
+
 // Fetch available voices from Speechify API
 export const fetchVoices = async (): Promise<Voice[]> => {
   try {
@@ -313,7 +424,10 @@ const getVoiceSample = async (voiceId: string): Promise<string> => {
   try {
     const token = await TokenManager.getToken();
     
-    const response = await fetch(`https://api.sws.speechify.com/v1/voices/${voiceId}/sample`, {
+    // Verify and fix voice ID if needed
+    const verifiedVoiceId = await verifyVoiceId(voiceId);
+    
+    const response = await fetch(`https://api.sws.speechify.com/v1/voices/${verifiedVoiceId}/sample`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -355,24 +469,28 @@ export const textToSpeech = async (
     
     const token = await TokenManager.getToken();
 
+    // Verify and fix voice ID if needed
+    const verifiedVoiceId = await verifyVoiceId(voiceId);
+    logger.info(`Using verified voice ID: ${verifiedVoiceId}`);
+
     // Check if we need to process SSML styling
     const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
                         (text.startsWith('<speak>') ? text : wrapWithSSML(text));
     
     logger.info(`Making TTS request with: ${JSON.stringify({
       text: processedText.substring(0, 20) + '...',
-      voiceId,
+      voiceId: verifiedVoiceId,
       modelId,
       hasSSMLStyle: !!ssmlStyle
     })}`);
 
     // For testing with placeholder voice IDs, use a sample voice
     // Since this is typically just for the voice sample in the UI
-    if (voiceId.includes('speechify-voice')) {
+    if (verifiedVoiceId.includes('speechify-voice')) {
       try {
         logger.info('Using sample voice for placeholder ID');
         // Get a real voice sample as a fallback
-        const sampleVoiceId = 'en-US-Neural2-F'; // A known working voice ID
+        const sampleVoiceId = 'emma'; // A known working voice ID in new format
         const blobUrl = await getVoiceSample(sampleVoiceId);
         
         // Fetch the blob data
@@ -399,7 +517,7 @@ export const textToSpeech = async (
       },
       body: JSON.stringify({
         input: processedText,
-        voice_id: voiceId,
+        voice_id: verifiedVoiceId,
         model: modelId,
         ssml: true
       }),
@@ -448,7 +566,11 @@ export const synthesizeWithSpeechMarks = async (
   params: TTSParams
 ): Promise<{ audio: ArrayBuffer | null, speechMarks?: NestedChunk }> => {
   try {
-    const { text, voiceId, modelId = 'simba-english', ssmlStyle, returnSpeechMarks = true } = params;
+    const { text, voiceId: originalVoiceId, modelId = 'simba-english', ssmlStyle, returnSpeechMarks = true } = params;
+    
+    // Verify and fix voice ID if needed
+    const voiceId = await verifyVoiceId(originalVoiceId);
+    logger.info(`Using verified voice ID: ${voiceId} (was: ${originalVoiceId})`);
     
     // Process text with SSML if needed
     const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 
@@ -516,14 +638,19 @@ export const synthesizeWithSpeechMarks = async (
 // Stream text to speech using the stream endpoint
 export const streamTextToSpeech = async (
   text: string, 
-  voiceId: string, 
+  originalVoiceId: string, 
   modelId: string = 'simba-english',
   ssmlStyle?: SSMLStyleOptions
 ): Promise<ReadableStream<Uint8Array> | null> => {
   try {
     logger.info('Starting TTS stream request');
     logger.info(`Text length: ${text.length}`);
-    logger.info(`Voice ID: ${voiceId}`);
+    logger.info(`Original Voice ID: ${originalVoiceId}`);
+    
+    // Verify and fix voice ID if needed
+    const voiceId = await verifyVoiceId(originalVoiceId);
+    logger.info(`Using verified Voice ID: ${voiceId}`);
+    
     logger.info(`SSML Style: ${ssmlStyle ? 'Yes' : 'No'}`);
     
     if (!voiceId || voiceId === 'undefined') {
@@ -535,7 +662,7 @@ export const streamTextToSpeech = async (
     
     // For testing with placeholder voice IDs, use a default voice
     // Use a standard Speechify voice ID if a placeholder is provided
-    const actualVoiceId = voiceId.includes('speechify-voice') ? 'en-US-Neural2-F' : voiceId;
+    const actualVoiceId = voiceId.includes('speechify-voice') ? 'emma' : voiceId;
     
     // Process text with SSML if needed
     const processedText = ssmlStyle ? wrapWithSSML(text, ssmlStyle) : 

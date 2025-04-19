@@ -32,21 +32,54 @@ export class InlineTextHighlighter {
   private highlightedElements: HTMLElement[] = [];
   private highlightColor: string = '#ffc107'; // Default yellow highlight color
   private sentenceHighlighter: SentenceHighlighter;
+  private isPaintWorkletRegistered: boolean = false;
   
   // Configuration
   private config = {
-    highlightColor: '#7d8aef', // Lighter blue color for better text visibility
-    highlightOpacity: 0.25,    // Reduced opacity for better text contrast
-    transitionSpeed: '0.3s',   // Slightly slower for smoother transitions
-    wordByWord: true
+    highlightColor: '#7d8aef',  // Base blue color for highlighting
+    activeHighlightColor: '#5a68e3', // Slightly darker blue for active words
+    highlightOpacity: 0.35,     // Increased opacity for better visibility
+    activeHighlightOpacity: 0.6, // Higher opacity for active word
+    transitionSpeed: '0.25s',   // Slightly faster for more responsive feeling
+    easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)', // Material Design easing for smoother transitions
+    wordByWord: true,
+    useHoudini: false           // Flag to toggle between CSS Paint API and regular CSS
   };
   
   constructor(audioPlayer: AudioStreamPlayer) {
     this.audioPlayer = audioPlayer;
     this.sentenceHighlighter = new SentenceHighlighter();
     
+    // Try to detect if CSS Paint API is supported
+    if (window.CSS && CSS.paintWorklet) {
+      this.config.useHoudini = true;
+      logger.info('[HIGHLIGHT TYPE] CSS Paint API (Houdini) is supported. Will attempt to use Paint Worklet for highlighting.');
+      this.registerPaintWorklet();
+    } else {
+      logger.warn('[HIGHLIGHT TYPE] CSS Paint API not supported in this browser. Using fallback regular CSS highlighting.');
+    }
+    
     // Create styles for highlighting
     this.createHighlightStyles();
+  }
+  
+  /**
+   * Register the CSS Paint Worklet
+   */
+  private registerPaintWorklet(): void {
+    if (this.isPaintWorkletRegistered || !CSS.paintWorklet) return;
+    
+    try {
+      // Register the paint worklet
+      CSS.paintWorklet.addModule(chrome.runtime.getURL('contentScript/textHighlight.js'));
+      this.isPaintWorkletRegistered = true;
+      logger.info('[HIGHLIGHT TYPE] Successfully registered text highlight Paint Worklet. Using CSS Paint API for highlighting.');
+    } catch (error) {
+      logger.error(`[HIGHLIGHT TYPE] Failed to register paint worklet: ${error}`);
+      // Fall back to regular CSS
+      this.config.useHoudini = false;
+      logger.warn('[HIGHLIGHT TYPE] Falling back to regular CSS for highlighting due to Paint Worklet registration failure.');
+    }
   }
   
   /**
@@ -58,77 +91,150 @@ export class InlineTextHighlighter {
     
     const style = document.createElement('style');
     style.id = 'nova-reader-highlight-styles';
-    style.textContent = `
-      .nova-reader-word {
-        transition: all ${this.config.transitionSpeed} ease-out;
-        padding: 0;
-        margin: 0;
-        cursor: pointer;
-        position: relative;
-        display: inline;
-      }
-      
-      .nova-reader-word:hover {
-        background-color: ${this.config.highlightColor}33; /* 20% opacity */
-      }
-      
-      .${this.highlightClassName} {
-        background-color: ${this.config.highlightColor} !important;
-        opacity: ${this.config.highlightOpacity};
-        transition: all ${this.config.transitionSpeed} ease-out;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        cursor: pointer;
-        color: #000000; /* Ensuring text is black for contrast */
-        text-shadow: 0px 0px 1px rgba(255,255,255,0.5); /* Adding subtle text shadow for readability */
-      }
-      
-      
-      /* Current word highlight that appears on top of the sentence highlight */
-      .${this.highlightClassName}-active {
-        background-color: ${this.config.highlightColor} !important;
-        opacity: ${this.config.highlightOpacity + 0.3};
-        animation: nova-reader-pulse 1.5s ease-in-out infinite;
-        box-shadow: 0 2px 8px rgba(125, 138, 239, 0.3);
-        border-radius: 3px;
-        position: relative;
-        z-index: 2;
-        color: #000000; /* Ensuring text is black for contrast */
-        text-shadow: 0px 0px 1px rgba(255,255,255,0.5); /* Adding subtle text shadow for readability */
-      }
-      
-      .nova-reader-wrapper {
-        display: inline;
-        position: relative;
-      }
-      
-      @keyframes nova-reader-pulse {
-        0% { 
-          opacity: ${this.config.highlightOpacity + 0.3}; 
-          transform: scale(1);
+    
+    if (this.config.useHoudini) {
+      // Use CSS Paint API for highlighting
+      style.textContent = `
+        .nova-reader-word {
+          transition: all ${this.config.transitionSpeed} ${this.config.easing};
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          position: relative;
+          display: inline;
+          border-radius: 3px;
         }
-        50% { 
-          opacity: ${this.config.highlightOpacity + 0.5}; 
-          transform: scale(1.02);
+        
+        .nova-reader-word:hover {
+          --highlight-color: ${this.config.highlightColor};
+          --highlight-opacity: 0.25;
+          --highlight-style: 'solid';
+          --highlight-active: 'false';
+          --highlight-border-radius: 3;
+          background-image: paint(textHighlight);
         }
-        100% { 
-          opacity: ${this.config.highlightOpacity + 0.3}; 
-          transform: scale(1);
+        
+        .${this.highlightClassName} {
+          --highlight-color: ${this.config.highlightColor};
+          --highlight-opacity: ${this.config.highlightOpacity};
+          --highlight-style: 'solid';
+          --highlight-active: 'false';
+          --highlight-border-radius: 4;
+          background-image: paint(textHighlight);
+          color: #000000;
+          text-shadow: 0px 0px 1px rgba(255,255,255,0.5);
+          transition: all ${this.config.transitionSpeed} ${this.config.easing};
+          position: relative;
+          padding: 0 2px;
+          margin: 0 -1px; /* Negative margin to prevent gaps */
         }
-      }
-      
-      .${this.highlightClassName}-active {
-        background-color: ${this.config.highlightColor} !important;
-        opacity: ${this.config.highlightOpacity + 0.3};
-        animation: nova-reader-pulse 1.5s ease-in-out infinite;
-        box-shadow: 0 2px 8px rgba(125, 138, 239, 0.3);
-        border-radius: 3px;
-        position: relative;
-        z-index: 1;
-      }
-    `;
+        
+        /* Current word highlight that appears on top of the sentence highlight */
+        .${this.highlightClassName}-active {
+          --highlight-color: ${this.config.activeHighlightColor};
+          --highlight-opacity: ${this.config.activeHighlightOpacity};
+          --highlight-style: 'glow';
+          --highlight-active: 'true';
+          --highlight-border-radius: 4;
+          background-image: paint(textHighlight);
+          color: #000000;
+          text-shadow: 0px 0px 1px rgba(255,255,255,0.7);
+          position: relative;
+          z-index: 2;
+          padding: 0 3px;
+          margin: 0 -2px; /* Negative margin to prevent gaps */
+          animation: nova-reader-pulse-houdini 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes nova-reader-pulse-houdini {
+          0% { 
+            --highlight-opacity: ${this.config.activeHighlightOpacity};
+          }
+          50% { 
+            --highlight-opacity: ${this.config.activeHighlightOpacity + 0.1};
+          }
+          100% { 
+            --highlight-opacity: ${this.config.activeHighlightOpacity};
+          }
+        }
+        
+        .nova-reader-wrapper {
+          display: inline;
+          position: relative;
+        }
+      `;
+    } else {
+      // Fallback to regular CSS for browsers without CSS Paint API support
+      style.textContent = `
+        .nova-reader-word {
+          transition: all ${this.config.transitionSpeed} ${this.config.easing};
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          position: relative;
+          display: inline;
+          border-radius: 3px;
+        }
+        
+        .nova-reader-word:hover {
+          background-color: ${this.config.highlightColor}40; /* 25% opacity */
+        }
+        
+        .${this.highlightClassName} {
+          background-color: ${this.config.highlightColor} !important;
+          opacity: ${this.config.highlightOpacity};
+          transition: all ${this.config.transitionSpeed} ${this.config.easing};
+          box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+          border-radius: 4px;
+          cursor: pointer;
+          color: #000000; /* Ensuring text is black for contrast */
+          text-shadow: 0px 0px 1px rgba(255,255,255,0.5); /* Adding subtle text shadow for readability */
+          padding: 0 2px;
+          margin: 0 -1px; /* Negative margin to prevent gaps */
+        }
+        
+        /* Current word highlight that appears on top of the sentence highlight */
+        .${this.highlightClassName}-active {
+          background-color: ${this.config.activeHighlightColor} !important;
+          opacity: ${this.config.activeHighlightOpacity};
+          animation: nova-reader-pulse 1.5s ease-in-out infinite;
+          box-shadow: 0 2px 8px rgba(90, 104, 227, 0.25);
+          border-radius: 4px;
+          position: relative;
+          z-index: 2;
+          color: #000000; /* Ensuring text is black for contrast */
+          text-shadow: 0px 0px 1px rgba(255,255,255,0.7); /* Enhanced text shadow for better readability */
+          padding: 0 3px;
+          margin: 0 -2px; /* Negative margin to prevent gaps */
+        }
+        
+        .nova-reader-wrapper {
+          display: inline;
+          position: relative;
+        }
+        
+        @keyframes nova-reader-pulse {
+          0% { 
+            opacity: ${this.config.activeHighlightOpacity}; 
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(90, 104, 227, 0.25);
+          }
+          50% { 
+            opacity: ${this.config.activeHighlightOpacity + 0.1}; 
+            transform: scale(1.02);
+            box-shadow: 0 3px 10px rgba(90, 104, 227, 0.35);
+          }
+          100% { 
+            opacity: ${this.config.activeHighlightOpacity}; 
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(90, 104, 227, 0.25);
+          }
+        }
+      `;
+    }
     
     document.head.appendChild(style);
-    logger.info('Highlight styles created');
+    logger.info(`[HIGHLIGHT TYPE] Highlight styles created using ${this.config.useHoudini ? 'CSS Paint API' : 'regular CSS'}`);
   }
   
   /**
@@ -460,7 +566,8 @@ export class InlineTextHighlighter {
     // Start sentence highlighting
     this.sentenceHighlighter.startHighlighting();
     
-    logger.info('Started highlighting');
+    // Log which highlighting method is being used
+    logger.info(`[HIGHLIGHT TYPE] Started highlighting using ${this.config.useHoudini ? 'CSS Paint Worklet (Houdini)' : 'regular CSS'}`);
   }
   
   /**

@@ -68,6 +68,7 @@ export default defineManifest({
         'assets/stop.svg',
         'assets/pause.svg',
         'assets/spinner.svg',
+        'contentScript/textHighlight.js', // Add our CSS Paint worklet
         'oauth-callback.html',
         'welcome.html'
       ],

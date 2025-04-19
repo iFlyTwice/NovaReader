@@ -35,8 +35,8 @@ export class InlineTextHighlighter {
   
   // Configuration
   private config = {
-    highlightColor: '#5664d2', // Changed to match the brand color (indigo)
-    highlightOpacity: 0.3,     // Increased for better visibility
+    highlightColor: '#7d8aef', // Lighter blue color for better text visibility
+    highlightOpacity: 0.25,    // Reduced opacity for better text contrast
     transitionSpeed: '0.3s',   // Slightly slower for smoother transitions
     wordByWord: true
   };
@@ -78,6 +78,8 @@ export class InlineTextHighlighter {
         transition: all ${this.config.transitionSpeed} ease-out;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         cursor: pointer;
+        color: #000000; /* Ensuring text is black for contrast */
+        text-shadow: 0px 0px 1px rgba(255,255,255,0.5); /* Adding subtle text shadow for readability */
       }
       
       
@@ -86,10 +88,12 @@ export class InlineTextHighlighter {
         background-color: ${this.config.highlightColor} !important;
         opacity: ${this.config.highlightOpacity + 0.3};
         animation: nova-reader-pulse 1.5s ease-in-out infinite;
-        box-shadow: 0 2px 8px rgba(86, 100, 210, 0.3);
+        box-shadow: 0 2px 8px rgba(125, 138, 239, 0.3);
         border-radius: 3px;
         position: relative;
         z-index: 2;
+        color: #000000; /* Ensuring text is black for contrast */
+        text-shadow: 0px 0px 1px rgba(255,255,255,0.5); /* Adding subtle text shadow for readability */
       }
       
       .nova-reader-wrapper {
@@ -116,7 +120,7 @@ export class InlineTextHighlighter {
         background-color: ${this.config.highlightColor} !important;
         opacity: ${this.config.highlightOpacity + 0.3};
         animation: nova-reader-pulse 1.5s ease-in-out infinite;
-        box-shadow: 0 2px 8px rgba(86, 100, 210, 0.3);
+        box-shadow: 0 2px 8px rgba(125, 138, 239, 0.3);
         border-radius: 3px;
         position: relative;
         z-index: 1;
@@ -345,7 +349,8 @@ export class InlineTextHighlighter {
    * Handle click on a word to seek audio
    */
   private handleWordClick(wordElement: HTMLElement): void {
-    if (!this.speechMarks || !this.isActive || !this.stringTracker) return;
+    // Remove isActive check to allow clicking even after playback has ended
+    if (!this.speechMarks || !this.stringTracker) return;
     
     const originalIndex = parseInt(wordElement.getAttribute('data-original-index') || '0');
     
@@ -357,9 +362,9 @@ export class InlineTextHighlighter {
       if (chunk) {
         logger.info(`Word clicked, seeking to ${chunk.start_time} ms`);
         
-        // Implement seeking in AudioStreamPlayer
+        // Use seekAndPlay instead of just seek to ensure playback resumes
         const seekTimeSeconds = chunk.start_time / 1000;
-        this.audioPlayer.seek(seekTimeSeconds);
+        this.audioPlayer.seekAndPlay(seekTimeSeconds);
       }
     }
   }

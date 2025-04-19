@@ -1106,4 +1106,34 @@ export class AudioStreamPlayer {
       this.audioElement.currentTime = timeInSeconds;
     }
   }
+  
+  /**
+   * Seek to a specific position and ensure playback is started/resumed
+   */
+  public seekAndPlay(timeInSeconds: number): void {
+    console.log('[AudioPlayer] Seeking to and playing from', timeInSeconds, 'seconds');
+    
+    // For Speechify direct audio
+    if (this.speechifyAudioElement) {
+      this.speechifyAudioElement.currentTime = timeInSeconds;
+      this.speechifyAudioElement.play()
+        .then(() => this.onPlaybackStart())
+        .catch(error => {
+          console.error('[AudioPlayer] Error resuming Speechify playback after seek:', error);
+          this.onPlaybackError(`Failed to resume playback: ${error}`);
+        });
+      return;
+    }
+    
+    // For regular audio
+    if (this.audioElement) {
+      this.audioElement.currentTime = timeInSeconds;
+      this.audioElement.play()
+        .then(() => this.onPlaybackStart())
+        .catch(error => {
+          console.error('[AudioPlayer] Error resuming playback after seek:', error);
+          this.onPlaybackError(`Failed to resume playback: ${error}`);
+        });
+    }
+  }
 }

@@ -25,3 +25,11 @@ export function updateTopPlayerVisibility(isVisible: boolean): void {
   });
   document.dispatchEvent(event);
 }
+
+// Update the panel's playback speed display
+export function updatePanelPlaybackSpeed(speed: number): void {
+  const event = new CustomEvent('update-panel-playback-speed', {
+    detail: { speed }
+  });
+  document.dispatchEvent(event);
+}

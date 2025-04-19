@@ -30,6 +30,17 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
     const colorPreview = panel.querySelector('#color-preview') as HTMLElement;
     const resetButton = panel.querySelector('#reset-highlight-settings') as HTMLButtonElement;
     
+    // Listen for playback speed updates from the player
+    document.addEventListener('update-panel-playback-speed', (event: any) => {
+      const { speed } = event.detail;
+      if (speedSlider && speedValue) {
+        // Update the slider and display
+        speedSlider.value = speed.toString();
+        speedValue.textContent = `${speed}x`;
+        console.log(`[Panel] Updated playback speed in panel: ${speed}x`);
+      }
+    });
+    
     // Load saved settings if available
     chrome.storage.local.get([
       'speechifyApiKey',

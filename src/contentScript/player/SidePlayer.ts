@@ -45,6 +45,9 @@ import {
   NestedChunk 
 } from '../speechifyApi';
 
+// Import panel event functions for updating the panel
+import { updatePanelPlaybackSpeed } from '../panel/utils/panelEvents';
+
 export class SidePlayer {
   // Make these public for the event handlers to access
   public playerId: string = 'extension-side-player';
@@ -97,20 +100,32 @@ export class SidePlayer {
     
     // Listen for changes to the highlighting state in storage
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes.playerHighlightingEnabled) {
-        const newValue = changes.playerHighlightingEnabled.newValue;
-        if (this.highlightingEnabled !== newValue) {
-          logger.info(`Player highlighting state changed in storage: ${newValue}`);
-          this.highlightingEnabled = newValue;
-          
-          // Update the highlight button if it exists
-          if (this.highlightButton) {
-            if (this.highlightingEnabled) {
-              this.highlightButton.classList.add('active');
-            } else {
-              this.highlightButton.classList.remove('active');
+      if (area === 'local') {
+        // Handle highlighting state changes
+        if (changes.playerHighlightingEnabled) {
+          const newValue = changes.playerHighlightingEnabled.newValue;
+          if (this.highlightingEnabled !== newValue) {
+            logger.info(`Player highlighting state changed in storage: ${newValue}`);
+            this.highlightingEnabled = newValue;
+            
+            // Update the highlight button if it exists
+            if (this.highlightButton) {
+              if (this.highlightingEnabled) {
+                this.highlightButton.classList.add('active');
+              } else {
+                this.highlightButton.classList.remove('active');
+              }
             }
           }
+        }
+        
+        // Handle playback speed changes
+        if (changes.playbackSpeed && this.currentSpeed !== changes.playbackSpeed.newValue) {
+          const newSpeed = changes.playbackSpeed.newValue;
+          logger.info(`Playback speed changed in storage: ${newSpeed}x`);
+          
+          // Update the player's speed without saving to storage again
+          this.updatePlaybackSpeedFromStorage(newSpeed);
         }
       }
     });
@@ -480,7 +495,7 @@ export class SidePlayer {
     // Add speed button
     const speedButton = document.createElement('div');
     speedButton.className = 'speed-button';
-    speedButton.textContent = '1.0x';
+    speedButton.textContent = `${this.currentSpeed}x`;
     speedButton.title = 'Playback Speed';
     speedButton.addEventListener('click', () => {
       // Cycle through speeds: 1.0 -> 1.5 -> 2.0 -> 0.5 -> 0.75 -> back to 1.0
@@ -491,9 +506,6 @@ export class SidePlayer {
       
       // Update speed
       this.setPlaybackSpeed(newSpeed);
-      
-      // Update button text
-      speedButton.textContent = `${newSpeed}x`;
       
       // Add visual feedback
       addClickEffect(speedButton);
@@ -779,7 +791,26 @@ export class SidePlayer {
     this.audioPlayer.stopPlayback();
   }
   
-  // Override the existing setPlaybackSpeed method
+  /**
+   * Update playback speed in the player without saving to storage
+   * Used when speed is changed from outside the player (e.g., panel)
+   */
+  private updatePlaybackSpeedFromStorage(speed: number): void {
+    this.currentSpeed = speed;
+    this.audioPlayer.setPlaybackSpeed(speed);
+    
+    // Update button text if it exists
+    if (this.speedButton) {
+      this.speedButton.textContent = `${speed}x`;
+    }
+    
+    logger.info(`Playback speed updated from storage: ${speed}x`);
+  }
+  
+  /**
+   * Set playback speed and save to storage
+   * Also dispatches an event to update the panel
+   */
   public setPlaybackSpeed(speed: number): void {
     this.currentSpeed = speed;
     this.audioPlayer.setPlaybackSpeed(speed);
@@ -790,8 +821,11 @@ export class SidePlayer {
     }
     
     // Save speed preference to storage
-    chrome.storage.local.set({ playerSpeed: speed }, () => {
+    chrome.storage.local.set({ playbackSpeed: speed }, () => {
       logger.info(`Playback speed saved: ${speed}x`);
+      
+      // Dispatch event to update the panel's speed display
+      updatePanelPlaybackSpeed(speed);
     });
   }
   
@@ -799,9 +833,19 @@ export class SidePlayer {
    * Load saved playback speed from storage
    */
   private loadPlaybackSpeed(): void {
-    chrome.storage.local.get(['playerSpeed'], (result) => {
-      if (result.playerSpeed) {
-        this.setPlaybackSpeed(result.playerSpeed);
+    chrome.storage.local.get(['playbackSpeed'], (result) => {
+      if (result.playbackSpeed) {
+        this.currentSpeed = result.playbackSpeed;
+        
+        // Update the audio player speed
+        this.audioPlayer.setPlaybackSpeed(result.playbackSpeed);
+        
+        // Update the speed button if it exists
+        if (this.speedButton) {
+          this.speedButton.textContent = `${result.playbackSpeed}x`;
+        }
+        
+        logger.info(`Loaded playback speed from storage: ${result.playbackSpeed}x`);
       }
     });
   }

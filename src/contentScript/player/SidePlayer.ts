@@ -326,9 +326,9 @@ export class SidePlayer {
     this.isPaused = true;
     handlePlaybackPause(this.playButton);
     
-    // Pause text highlighting
+    // Pause text highlighting instead of stopping it
     if (this.highlightingEnabled) {
-      this.textHighlighter.stopHighlighting();
+      this.textHighlighter.pauseHighlighting();
     }
   }
   

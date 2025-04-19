@@ -95,6 +95,15 @@ export class SentenceHighlighter {
   }
   
   /**
+   * Pause highlighting without clearing highlights
+   */
+  public pauseHighlighting(): void {
+    this.isActive = false;
+    // Don't clear highlights to maintain the current state
+    logger.info('Paused sentence highlighting - keeping current highlights');
+  }
+  
+  /**
    * Highlight the sentence containing the current word
    */
   public highlightSentence(currentWordElement: HTMLElement | null): void {

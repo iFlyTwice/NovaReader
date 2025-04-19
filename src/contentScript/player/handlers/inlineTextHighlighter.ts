@@ -483,6 +483,30 @@ export class InlineTextHighlighter {
   }
   
   /**
+   * Pause highlighting, maintaining current highlights but stopping updates
+   */
+  public pauseHighlighting(): void {
+    if (!this.isActive) return;
+    
+    // Set state to inactive to stop updates, but don't clear highlights
+    this.isActive = false;
+    
+    // Restore original callback if it exists
+    if (this.originalTimeUpdateCallback) {
+      this.audioPlayer.setCallbacks({
+        onTimeUpdate: this.originalTimeUpdateCallback
+      });
+    }
+    
+    // Don't clear highlights to maintain the current highlighting state
+    
+    // Pause sentence highlighter without clearing
+    this.sentenceHighlighter.pauseHighlighting();
+    
+    logger.info('Paused highlighting - keeping current highlights');
+  }
+  
+  /**
    * Handle time updates from audio player
    */
   private handleTimeUpdate(currentTime: number, duration: number): void {

@@ -13,6 +13,7 @@ export function createVoiceOption(voice: Voice, addClickEffect: (element: HTMLEl
   const voiceOption = document.createElement('div');
   voiceOption.className = 'voice-option';
   voiceOption.setAttribute('data-voice-id', voice.id);
+  voiceOption.setAttribute('data-accent', voice.accent);
   
   const voiceName = document.createElement('div');
   voiceName.className = 'voice-name';

@@ -10,6 +10,9 @@ import { filterVoices } from './utils/voiceFilters';
 import { playSample } from './handlers/voiceSampleHandler';
 import { loadCurrentVoice, updateCurrentVoiceDisplay } from './handlers/currentVoiceHandler';
 import { createLogger } from '../../utils/logger';
+// Import language data
+import { ALL_LANGUAGES, getLanguageCodeFromLocale } from './utils/supportedLanguages';
+import { LanguageDropdown } from './utils/LanguageDropdown';
 
 // Create a logger instance for this module
 const logger = createLogger('VoiceSelector');
@@ -21,6 +24,9 @@ export class VoiceSelector {
   private selectorId: string = 'extension-voice-selector';
   private selectorElement: HTMLElement | null = null;
   private isPanelOpen: boolean = false;
+  private selectedLanguage: string = 'all'; // Default to all languages
+  private languageDropdown: LanguageDropdown | null = null;
+  private languageButtonElement: HTMLElement | null = null;
   
   // Voice options from TTS API
   private voices: Voice[] = [];
@@ -175,6 +181,16 @@ export class VoiceSelector {
       const voiceOption = createVoiceOption(voice, this.addClickEffect);
       voiceList.appendChild(voiceOption);
     });
+    
+    // Apply any active language filter
+    if (this.selectedLanguage !== 'all') {
+      // Get the current search term if any
+      const searchInput = document.querySelector('.voice-search-input') as HTMLInputElement;
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+      
+      // Apply filter with current language and search term
+      filterVoices(searchTerm, this.selectedLanguage);
+    }
   }
   
   private addClickEffect(element: HTMLElement): void {
@@ -192,6 +208,127 @@ export class VoiceSelector {
     button.title = title;
     button.addEventListener('click', clickHandler);
     return button;
+  }
+  
+  /**
+   * Creates a language dropdown for filtering voices by language
+   * @returns HTMLElement containing the language dropdown
+   */
+  private createLanguageSelector(): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'language-dropdown-container';
+    
+    const label = document.createElement('label');
+    label.textContent = 'Language:';
+    label.className = 'language-dropdown-label';
+    
+    // Create a button that will trigger the custom dropdown
+    const button = document.createElement('div');
+    button.className = 'language-selector-button';
+    
+    // Style the button to look similar to the old dropdown but more like a button
+    Object.assign(button.style, {
+      flex: '1',
+      height: '30px',
+      padding: '0 12px',
+      backgroundColor: '#3a3a3a',
+      border: '1px solid #444',
+      borderRadius: '6px',
+      color: '#fff',
+      fontSize: '13px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    });
+    
+    // Display the current selected language
+    const languageText = document.createElement('span');
+    languageText.className = 'language-text';
+    languageText.textContent = this.getLanguageNameByCode(this.selectedLanguage);
+    
+    // Add dropdown arrow icon
+    const arrowIcon = document.createElement('span');
+    arrowIcon.className = 'language-dropdown-arrow';
+    arrowIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9L12 15 18 9"/></svg>`;
+    
+    button.appendChild(languageText);
+    button.appendChild(arrowIcon);
+    
+    // Add click handler for the button
+    button.addEventListener('click', (e) => {
+      // Stop event propagation to prevent document click handler from closing the voice selector
+      e.stopPropagation();
+      
+      // If dropdown is already open, close it
+      if (this.languageDropdown?.isOpen()) {
+        this.languageDropdown.close();
+        this.languageDropdown = null;
+        return;
+      }
+      
+      // Create the dropdown with reference to the button
+      this.languageDropdown = new LanguageDropdown({
+        buttonElement: button,
+        selectedLanguage: this.selectedLanguage,
+        onLanguageSelect: (languageCode) => {
+          // Update the selected language
+          this.selectedLanguage = languageCode;
+          
+          // Update the button text
+          const languageTextElement = button.querySelector('.language-text');
+          if (languageTextElement) {
+            languageTextElement.textContent = this.getLanguageNameByCode(languageCode);
+          }
+          
+          // Save the language preference to storage
+          chrome.storage.local.set({ selectedLanguage: languageCode }, () => {
+            logger.info('Language preference saved');
+          });
+          
+          // Get the current search term if any
+          const searchInput = document.querySelector('.voice-search-input') as HTMLInputElement;
+          const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+          
+          // Apply filter with new language
+          filterVoices(searchTerm, languageCode);
+        },
+        onClose: () => {
+          this.languageDropdown = null;
+        }
+      });
+      
+      // Append the dropdown directly to document.body for proper visual positioning
+      document.body.appendChild(this.languageDropdown.render());
+    });
+    
+    // Add hover effects
+    button.addEventListener('mouseenter', () => {
+      button.style.borderColor = '#555';
+      button.style.backgroundColor = '#424242';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      button.style.borderColor = '#444';
+      button.style.backgroundColor = '#3a3a3a';
+    });
+    
+    // Store reference to button element
+    this.languageButtonElement = button;
+    
+    container.appendChild(label);
+    container.appendChild(button);
+    
+    return container;
+  }
+  
+  /**
+   * Helper method to get language name from code
+   */
+  private getLanguageNameByCode(code: string): string {
+    const language = ALL_LANGUAGES.find(lang => lang.code === code);
+    return language ? language.name : 'All Languages';
   }
   
   public async create(isPanelOpen: boolean = false): Promise<void> {
@@ -257,6 +394,9 @@ export class VoiceSelector {
     header.className = 'voice-selector-header';
     header.appendChild(currentVoiceContainer);
     
+    // Create and add the language dropdown
+    const languageDropdown = this.createLanguageSelector();
+    
     // Add search bar
     const searchContainer = document.createElement('div');
     searchContainer.className = 'voice-search-container';
@@ -271,7 +411,7 @@ export class VoiceSelector {
     searchInput.placeholder = 'Search voices...';
     searchInput.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement;
-      filterVoices(target.value.toLowerCase());
+      filterVoices(target.value.toLowerCase(), this.selectedLanguage);
     });
     
     searchContainer.appendChild(searchIcon);
@@ -348,12 +488,31 @@ export class VoiceSelector {
       }
     });
     
-    // Append all elements to selector
+    // Create a scrollable content container
+    const contentContainer = document.createElement('div');
+    contentContainer.className = 'voice-selector-content';
+    
+    // Apply initial scrollbar styling to ensure it's visible immediately
+    Object.assign(contentContainer.style, {
+      overflowY: 'scroll',
+      maxHeight: 'calc(80vh - 32px)',
+      width: '100%',
+      position: 'relative',
+      paddingRight: '4px'
+    });
+    
+    // Append all elements to the selector
     selector.appendChild(topHeader);
     selector.appendChild(header);
-    selector.appendChild(searchContainer);
-    selector.appendChild(voiceList);
-    selector.appendChild(saveButton);
+    
+    // Append content elements to the scrollable container
+    contentContainer.appendChild(languageDropdown);
+    contentContainer.appendChild(searchContainer);
+    contentContainer.appendChild(voiceList);
+    contentContainer.appendChild(saveButton);
+    
+    // Add the content container to the selector
+    selector.appendChild(contentContainer);
     
     // Add selector to page
     document.body.appendChild(selector);
@@ -361,6 +520,22 @@ export class VoiceSelector {
     
     // Load the currently selected voice if available
     loadCurrentVoice();
+    
+    // Load any previously saved language preference
+    chrome.storage.local.get(['selectedLanguage'], (result) => {
+      if (result.selectedLanguage) {
+        this.selectedLanguage = result.selectedLanguage;
+        
+        // Update the dropdown if it exists
+        const dropdown = selector.querySelector('.language-selector-button') as HTMLDivElement;
+        if (dropdown) {
+          const languageTextElement = dropdown.querySelector('.language-text');
+          if (languageTextElement) {
+            languageTextElement.textContent = this.getLanguageNameByCode(this.selectedLanguage);
+          }
+        }
+      }
+    });
   }
   
   public async toggle(isPanelOpen: boolean = false): Promise<void> {
@@ -377,6 +552,12 @@ export class VoiceSelector {
     if (selector) {
       selector.remove();
       this.selectorElement = null;
+    }
+    
+    // Close language dropdown if open
+    if (this.languageDropdown) {
+      this.languageDropdown.close();
+      this.languageDropdown = null;
     }
   }
   

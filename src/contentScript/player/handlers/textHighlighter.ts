@@ -1,6 +1,6 @@
 // Text Highlighter for synchronizing text with audio playback
 import { AudioStreamPlayer } from '../../audioPlayer';
-import { createStringTracker, StringTracker } from 'string-tracker'; // Import StringTracker
+import { createStringTracker, StringTracker } from '../../../stringTracker'; // Import StringTracker from local file
 
 // Define interfaces for speech marks data
 interface Chunk {
@@ -369,22 +369,24 @@ export class TextHighlighter {
     // Create a temporary div to decode entities
     const div = document.createElement('div');
     
-    while ((match = entityRegex.exec(ssmlText)) !== null) {
-      // Get the entity's decoded value
-      div.innerHTML = match[0];
-      const decoded = div.textContent || '';
+    if (this.stringTracker) {
+      while ((match = entityRegex.exec(ssmlText)) !== null) {
+        // Get the entity's decoded value
+        div.innerHTML = match[0];
+        const decoded = div.textContent || '';
+        
+        // Remove the entity and add the decoded character
+        let tracker: StringTracker = this.stringTracker.remove(match.index - offset, match.index - offset + match[0].length);
+        tracker = tracker.add(match.index - offset, decoded);
+        this.stringTracker = tracker;
+        
+        // Adjust offset based on the difference in length
+        offset += (match[0].length - decoded.length);
+      }
       
-      // Remove the entity and add the decoded character
-      let tracker = this.stringTracker.remove(match.index - offset, match.index - offset + match[0].length);
-      tracker = tracker.add(match.index - offset, decoded);
-      this.stringTracker = tracker;
-      
-      // Adjust offset based on the difference in length
-      offset += (match[0].length - decoded.length);
+      // Update display text using the tracker
+      this.displayText = this.stringTracker.get();
     }
-    
-    // Update display text using the tracker
-    this.displayText = this.stringTracker.get();
     
     console.log('[TextHighlighter] Processed SSML text');
   }

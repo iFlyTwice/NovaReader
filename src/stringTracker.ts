@@ -90,6 +90,13 @@ export class StringTracker {
     // For now, just return the same index if it's within bounds
     return Math.min(index, this.modifiedText.length);
   }
+  
+  /**
+   * Alias for mapFromOriginal - used for compatibility with external StringTracker implementations
+   */
+  public getIndexOnModified(index: number): number {
+    return this.mapFromOriginal(index);
+  }
 }
 
 /**

@@ -42,9 +42,6 @@ export default defineManifest({
       ]
     },
   ],
-  side_panel: {
-    default_path: 'sidepanel.html',
-  },
   web_accessible_resources: [
     {
       resources: [
@@ -75,7 +72,7 @@ export default defineManifest({
       matches: ['<all_urls>'],
     },
   ],
-  permissions: ['sidePanel', 'storage', 'activeTab', 'identity'],
+  permissions: ['storage', 'activeTab', 'identity'],
   host_permissions: [
     "https://*.supabase.co/*"
   ],

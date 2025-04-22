@@ -183,10 +183,9 @@
   gap: 6px; /* Reduced gap */
   margin-bottom: 12px;
   max-height: 200px; /* Adjusted max-height for grid layout */
-  overflow-y: auto;
   animation: voiceItemsAppear 0.3s 0.25s ease-out forwards;
   opacity: 0;
-  padding-right: 8px; /* Add padding for scrollbar */
+  padding-right: 4px; /* Reduced from 8px to match voiceSelector.css change */
 }
 
 /* Regular list layout for cadence list (keep unchanged) */
@@ -196,37 +195,31 @@
   gap: 6px; /* Reduced gap */
   margin-bottom: 12px;
   max-height: 150px;
-  overflow-y: auto;
   animation: voiceItemsAppear 0.3s 0.25s ease-out forwards;
   opacity: 0;
-  padding-right: 8px;
+  padding-right: 4px; /* Reduced from 8px to match voiceSelector.css change */
 }
 
-/* Custom scrollbar for voice-selector-list */
+/* Hide custom scrollbar for voice-selector-list */
 .voice-selector-list::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none;
 }
 
 .voice-selector-list::-webkit-scrollbar-track {
-  background: rgba(42, 42, 42, 0.1);
-  border-radius: 10px;
-  margin: 3px 0;
+  display: none;
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb {
-  background: #27272a; /* Zinc-800 - dark zinc color to match other components */
-  border-radius: 10px;
+  display: none;
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
+  display: none;
 }
 
 /* Firefox specific */
 .voice-selector-list {
-  scrollbar-width: thin;
-  scrollbar-color: #27272a rgba(42, 42, 42, 0.1);
+  scrollbar-width: none; /* Hide scrollbar in Firefox */
 }
 
 /* Define animation for voice options to stagger their appearance */

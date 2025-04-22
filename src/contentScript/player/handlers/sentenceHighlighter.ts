@@ -1,6 +1,17 @@
 // Sentence Highlighter component for highlighting the entire sentence being played
 import { createLogger } from '../../../utils/logger';
 
+// Add type declarations for CSS Paint API
+declare global {
+  interface PaintWorklet {
+    addModule(moduleURL: string): Promise<void>;
+  }
+  
+  interface CSS {
+    paintWorklet: PaintWorklet;
+  }
+}
+
 // Create a logger instance for this module
 const logger = createLogger('SentenceHighlighter');
 

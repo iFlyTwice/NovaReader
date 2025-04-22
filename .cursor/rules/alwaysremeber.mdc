@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- before each operation or any action always remember to use sequential thinking MCP.
+- Before any operation, list every directory and sub directories within a project file. Whatever operation that it is, always remember to perform this task. Whatever task it is, always remember.
+- after reading a file use sequential thinking.
+- after write_file or edit_block a file use sequential thinking to figure out the  best next step to ensure everything work
+
+
+
+Read all files within the target directories before performing any operations. Thoroughly examine every file to understand the complete project structure. When a code file references another method or class, locate and review all related files to understand dependencies and relationships. Never proceed with changes or operations until you have a comprehensive understanding of the entire project structure. always use sequential thinking
+
+-  always remember to use sequential thinking MCP before sending any message.

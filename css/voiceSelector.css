@@ -37,8 +37,7 @@
   border: 1px solid #2a2b31;
   width: 280px;
   max-height: 80vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Change to hidden to prevent outer scrollbar */
   transition: right 0.3s ease-in-out, box-shadow 0.3s ease; /* Smooth transition for position and shadow changes */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   /* Position relative to the player - increased distance */
@@ -46,6 +45,42 @@
   
   /* Animation for appearance */
   animation: voiceSelectorAppear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Special container for the scrollable content to allow dropdowns to overflow */
+.voice-selector-content {
+  overflow-y: scroll !important; /* Force scrollbar to always be visible */
+  -webkit-appearance: none; /* Ensure custom styles take precedence */
+  scrollbar-width: thin !important; /* Firefox - ensure custom scrollbar is always visible */
+  scrollbar-color: #3f3f46 rgba(42, 42, 42, 0.3) !important; /* Firefox - set custom colors */
+  max-height: calc(80vh - 32px); /* Account for padding */
+  width: 100%;
+  position: relative;
+  padding-right: 4px; /* Add padding to prevent content from touching scrollbar */
+}
+
+/* Custom scrollbar for voice-selector-content - WebKit browsers (Chrome, Safari, etc.) */
+.voice-selector-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block !important; /* Ensure the scrollbar is always displayed */
+}
+
+.voice-selector-content::-webkit-scrollbar-track {
+  background: rgba(42, 42, 42, 0.3); /* More visible background */
+  border-radius: 10px;
+  margin: 3px 0;
+  border: 1px solid rgba(255, 255, 255, 0.05); /* Subtle border for visibility */
+}
+
+.voice-selector-content::-webkit-scrollbar-thumb {
+  background: #3f3f46; /* Slightly lighter than before for better visibility */
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for visibility */
+}
+
+.voice-selector-content::-webkit-scrollbar-thumb:hover {
+  background: #52525b; /* Even lighter for hover state */
 }
 
 /* When panel is open, the player moves to right: 370px, so voice selector should adjust */
@@ -65,6 +100,25 @@
                 0 0 0 2px rgba(0, 0, 0, 0.02),
                 -8px 0 25px rgba(0, 0, 0, 0.2),
                 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Light theme for voice selector content scrollbar */
+  .voice-selector-content {
+    scrollbar-color: #a1a1aa rgba(0, 0, 0, 0.1) !important; /* Firefox - light theme colors */
+  }
+  
+  .voice-selector-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1); /* Darker for better visibility */
+    border: 1px solid rgba(0, 0, 0, 0.05); /* Subtle border for visibility */
+  }
+  
+  .voice-selector-content::-webkit-scrollbar-thumb {
+    background: #a1a1aa; /* Darker gray for better visibility */
+    border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border for visibility */
+  }
+  
+  .voice-selector-content::-webkit-scrollbar-thumb:hover {
+    background: #71717a; /* Even darker for hover state */
   }
 }
 
@@ -146,6 +200,223 @@
   max-width: 30%;
 }
 
+/* Language dropdown container - NEW */
+.language-dropdown-container {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 12px 4px;
+  position: relative;
+  animation: voiceItemsAppear 0.3s 0.18s ease-out forwards;
+  opacity: 0;
+  margin-bottom: 4px;
+  overflow: visible;
+}
+
+.language-dropdown-label {
+  margin-right: 8px;
+  font-size: 13px;
+  color: #aaa;
+  font-weight: normal;
+}
+
+.language-dropdown {
+  flex: 1;
+  height: 30px;
+  padding: 0 8px;
+  background-color: #3a3a3a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 9L12 15 18 9'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px; /* Make room for the custom arrow */
+  transition: all 0.2s ease;
+}
+
+.language-dropdown:hover {
+  border-color: #555;
+  background-color: #424242;
+}
+
+.language-dropdown:focus {
+  border-color: #5664d2;
+  box-shadow: 0 0 0 2px rgba(86, 100, 210, 0.2);
+}
+
+.language-dropdown option {
+  background-color: #3a3a3a;
+  color: #fff;
+  padding: 6px;
+}
+
+/* Style specifically for the custom language dropdown */
+.nova-language-dropdown {
+  position: absolute;
+  z-index: 9998; /* Above the voice selector */
+  overflow: hidden; /* Changed from overflow-y: auto to prevent double scrollbar */
+  padding: 0; /* Remove default padding */
+  max-height: 300px;
+  background-color: #282828;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border: 1px solid #3a3a3a;
+  width: 220px;
+  animation: voiceItemsAppear 0.2s ease-out forwards;
+  top: calc(100% + 5px);
+  left: 0;
+}
+
+/* Title for the language dropdown */
+.nova-language-dropdown-title {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f0f0;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+}
+
+/* Container for the language items list */
+.nova-language-dropdown-list {
+  padding: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+/* Individual language dropdown item */
+.nova-language-dropdown-item {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #f0f0f0;
+  font-size: 14px;
+  transition: all 0.15s ease;
+  margin: 2px 0;
+  border-radius: 6px;
+  position: relative;
+}
+
+/* Hover state for dropdown items */
+.nova-language-dropdown-item:hover {
+  background-color: #3a3a3a;
+}
+
+/* Selected state for dropdown items */
+.nova-language-dropdown-item.selected {
+  background-color: #3f3f46;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+/* Checkmark for selected language */
+.nova-language-dropdown-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235664d2' width='16' height='16'%3e%3cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Add left padding for all items to account for checkmark space */
+.nova-language-dropdown-item {
+  padding-left: 38px;
+}
+
+/* Custom scrollbar for language dropdown list - WebKit browsers (Chrome, Safari, etc.) */
+.nova-language-dropdown-list::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block; /* Ensure the scrollbar is always displayed */
+}
+
+.nova-language-dropdown-list::-webkit-scrollbar-track {
+  background: rgba(42, 42, 42, 0.3); /* More visible background */
+  border-radius: 10px;
+  margin: 3px 0;
+  border: 1px solid rgba(255, 255, 255, 0.05); /* Subtle border for visibility */
+}
+
+.nova-language-dropdown-list::-webkit-scrollbar-thumb {
+  background: #3f3f46; /* Slightly lighter than before for better visibility */
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for visibility */
+}
+
+.nova-language-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: #52525b; /* Even lighter for hover state */
+}
+
+/* Firefox specific scrollbar for language dropdown list */
+.nova-language-dropdown-list {
+  scrollbar-width: thin; /* 'thin' ensures it's always visible */
+  scrollbar-color: #3f3f46 rgba(42, 42, 42, 0.3); /* Match the WebKit colors */
+}
+
+/* Light theme for custom language dropdown */
+@media (prefers-color-scheme: light) {
+  .nova-language-dropdown {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  }
+  
+  .nova-language-dropdown-title {
+    color: #333;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: #f5f5f5;
+  }
+  
+  .nova-language-dropdown-item {
+    color: #333;
+  }
+  
+  .nova-language-dropdown-item:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .nova-language-dropdown-item.selected {
+    background-color: #e8eaf6;
+    color: #3f51b5;
+  }
+  
+  .nova-language-dropdown-item.selected::before {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233f51b5' width='16' height='16'%3e%3cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3e%3c/svg%3e");
+  }
+  
+  /* Light theme for custom language dropdown scrollbar */
+  .nova-language-dropdown-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.02);
+  }
+  
+  .nova-language-dropdown-list::-webkit-scrollbar-thumb {
+    background: #d1d1d1;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .nova-language-dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b0;
+  }
+  
+  /* Firefox specific light theme */
+  .nova-language-dropdown-list {
+    scrollbar-color: #d1d1d1 rgba(0, 0, 0, 0.05);
+  }
+}
+
 /* Search bar container */
 .voice-search-container {
   display: flex;
@@ -208,6 +479,54 @@
   .voice-search-icon {
     color: #777;
   }
+  
+  /* Light theme for language dropdown - NEW */
+  .language-dropdown {
+    background-color: #f0f0f0;
+    border-color: #ddd;
+    color: #333;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' stroke='%23333' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 9L12 15 18 9'/%3e%3c/svg%3e");
+  }
+  
+  .language-dropdown:hover {
+    background-color: #e8e8e8;
+    border-color: #ccc;
+  }
+  
+  .language-dropdown option {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  
+  .language-dropdown-label {
+    color: #666;
+  }
+  
+  /* Light theme for custom language dropdown scrollbar */
+  .nova-language-dropdown {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .nova-language-dropdown::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1); /* Darker for better visibility */
+    border: 1px solid rgba(0, 0, 0, 0.05); /* Subtle border for visibility */
+  }
+  
+  .nova-language-dropdown::-webkit-scrollbar-thumb {
+    background: #a1a1aa; /* Darker gray for better visibility */
+    border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border for visibility */
+  }
+  
+  .nova-language-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #71717a; /* Even darker for hover state */
+  }
+  
+  /* Firefox specific light theme */
+  .nova-language-dropdown {
+    scrollbar-color: #a1a1aa rgba(0, 0, 0, 0.1); /* Match the WebKit colors */
+  }
 }
 
 .voice-selector-title {
@@ -225,8 +544,7 @@
   gap: 8px;
   margin-bottom: 16px;
   max-height: 300px;
-  overflow-y: auto;
-  padding-right: 10px; /* Add padding between the scrollbar and content */
+  padding-right: 4px; /* Reduced from 10px to allow more width for voice options */
   animation: voiceItemsAppear 0.3s 0.25s ease-out forwards;
   opacity: 0;
 }
@@ -241,29 +559,25 @@
 
 /* Custom scrollbar for voice-selector-list only */
 .voice-selector-list::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none; /* Hide the scrollbar completely */
 }
 
+/* No need for these since we're hiding the scrollbar */
 .voice-selector-list::-webkit-scrollbar-track {
-  background: rgba(42, 42, 42, 0.1);
-  border-radius: 10px;
-  margin: 3px 0;
+  display: none;
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb {
-  background: #27272a; /* Zinc-800 - dark zinc color to match other components */
-  border-radius: 10px;
+  display: none;
 }
 
 .voice-selector-list::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46; /* Zinc-700 - slightly lighter for hover state */
+  display: none;
 }
 
 /* Firefox specific - only for voice-selector-list */
 .voice-selector-list {
-  scrollbar-width: thin;
-  scrollbar-color: #27272a rgba(42, 42, 42, 0.1);
+  scrollbar-width: none; /* Hide scrollbar in Firefox */
 }
 
 /* Define animation for voice options to stagger their appearance */
@@ -290,7 +604,7 @@
   text-align: center; /* Center the text */
   padding-left: 50px; /* Add space for the play button on the left */
   padding-right: 30px; /* Add space for the checkmark on the right */
-  margin-right: 10px; /* Margin on the right for spacing from scrollbar */
+  margin-right: 2px; /* Reduced from 10px to allow voice options to be wider */
   border-left: 3px solid transparent; /* Transparent border for consistent sizing with active state */
   min-height: 65px; /* Set minimum height to prevent UI shifts */
   max-height: 85px; /* Set maximum height to prevent overly tall items */

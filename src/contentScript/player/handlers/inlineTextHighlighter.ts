@@ -4,6 +4,17 @@ import { createStringTracker, StringTracker } from '../../../stringTracker'; // 
 import { createLogger } from '../../../utils/logger';
 import { SentenceHighlighter } from './sentenceHighlighter';
 
+// Add type declarations for CSS Paint API
+declare global {
+  interface PaintWorklet {
+    addModule(moduleURL: string): Promise<void>;
+  }
+  
+  interface CSS {
+    paintWorklet: PaintWorklet;
+  }
+}
+
 // Create a logger instance for this module
 const logger = createLogger('TextHighlighter');
 

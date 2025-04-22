@@ -3,6 +3,107 @@
  */
 
 import { updateHighlightingState, updateSelectionButtonColor, updateTopPlayerVisibility } from '../utils/panelEvents';
+import { getUser, saveUserPreferences } from '../../../supabase/client';
+import { includeTopPlayerInPreferences } from '../../../supabase/topPlayerSettings';
+
+// Sync settings to Supabase
+export async function syncSettingsToSupabase(showStatus: boolean = true): Promise<boolean> {
+  try {
+    // Get current user
+    const { user, error } = await getUser();
+    
+    if (error || !user) {
+      console.error('[Settings] Sync failed: Not logged in');
+      return false;
+    }
+    
+    // Get the sync status element if we need to show status
+    let syncStatus: HTMLElement | null = null;
+    if (showStatus) {
+      syncStatus = document.querySelector('#sync-status');
+      if (syncStatus) {
+        syncStatus.textContent = 'Syncing settings...';
+        syncStatus.className = 'mt-2';
+      }
+    }
+    
+    // Get current settings
+    return new Promise((resolve) => {
+      chrome.storage.local.get([
+        'apiKey',
+        'speechifyApiKey',
+        'selectedModel',
+        'speechifyModel',
+        'playbackSpeed',
+        'highlightEnabled',
+        'selectionButtonColor',
+        'topPlayerEnabled',
+        'ttsProvider',
+        'autoSyncEnabled'
+      ], async (settings) => {
+        try {
+          // Make sure the top player setting is included in preferences
+          const updatedSettings = includeTopPlayerInPreferences(
+            settings, 
+            settings.topPlayerEnabled !== undefined ? settings.topPlayerEnabled : true
+          );
+          
+          // Save settings to Supabase
+          const { error } = await saveUserPreferences(user.id, updatedSettings);
+          
+          if (error) {
+            throw error;
+          }
+          
+          console.log('[Settings] Settings synced successfully');
+          
+          if (showStatus && syncStatus) {
+            syncStatus.textContent = 'Settings synced successfully!';
+            syncStatus.className = 'mt-2 form-success';
+            
+            // Clear status after a few seconds
+            setTimeout(() => {
+              if (syncStatus) {
+                syncStatus.textContent = '';
+              }
+            }, 3000);
+          }
+          
+          resolve(true);
+        } catch (error: any) {
+          console.error('[Settings] Error syncing settings:', error);
+          
+          if (showStatus && syncStatus) {
+            syncStatus.textContent = error.message || 'Failed to sync settings. Please try again.';
+            syncStatus.className = 'mt-2 form-error';
+          }
+          
+          resolve(false);
+        }
+      });
+    });
+  } catch (error: any) {
+    console.error('[Settings] Error in syncSettingsToSupabase:', error);
+    return false;
+  }
+}
+
+// Check if auto sync is enabled
+export function isAutoSyncEnabled(): Promise<boolean> {
+  return new Promise((resolve) => {
+    getUser().then(({ user, error }) => {
+      if (!user || error) {
+        resolve(false);
+        return;
+      }
+      
+      chrome.storage.local.get(['autoSyncEnabled'], (result) => {
+        // Default to true if not set
+        resolve(result.autoSyncEnabled !== undefined ? result.autoSyncEnabled : true);
+      });
+    });
+  });
+}
 
 // Set up event handlers for settings page
 export function setupSettingsHandlers(panel: HTMLElement): void {
@@ -30,6 +131,33 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
     const colorPreview = panel.querySelector('#color-preview') as HTMLElement;
     const resetButton = panel.querySelector('#reset-highlight-settings') as HTMLButtonElement;
     
+    // Sync settings
+    const syncButton = panel.querySelector('#sync-settings-btn') as HTMLButtonElement;
+    const syncStatus = panel.querySelector('#sync-status') as HTMLElement;
+    const syncSection = panel.querySelector('#settings-sync-section') as HTMLElement;
+    const autoSyncToggle = panel.querySelector('#auto-sync-toggle') as HTMLInputElement;
+    
+    // Check if user is logged in to show/hide sync section
+    getUser().then(({ user, error }) => {
+      if (syncSection) {
+        if (user && !error) {
+          syncSection.style.display = 'block';
+          
+          // Load auto sync setting
+          chrome.storage.local.get(['autoSyncEnabled'], (result) => {
+            if (autoSyncToggle) {
+              // Default to true if not set
+              const autoSyncEnabled = result.autoSyncEnabled !== undefined ? result.autoSyncEnabled : true;
+              autoSyncToggle.checked = autoSyncEnabled;
+              console.log(`[Panel] Auto sync loaded from storage: ${autoSyncEnabled ? 'enabled' : 'disabled'}`);
+            }
+          });
+        } else {
+          syncSection.style.display = 'none';
+        }
+      }
+    });
+    
     // Listen for playback speed updates from the player
     document.addEventListener('update-panel-playback-speed', (event: any) => {
       const { speed } = event.detail;
@@ -49,7 +177,8 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
       'highlightEnabled',
       'playerHighlightingEnabled',
       'selectionButtonColor',
-      'topPlayerEnabled'
+      'topPlayerEnabled',
+      'autoSyncEnabled'
     ], (result) => {
       // Speechify API Key
       if (result.speechifyApiKey && speechifyApiKeyInput) {
@@ -106,6 +235,13 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
         
         // Dispatch initial event to update the top player visibility
         updateTopPlayerVisibility(topPlayerEnabled);
+      }
+      
+      // Auto sync toggle
+      if (autoSyncToggle) {
+        // Default to true if not set
+        const autoSyncEnabled = result.autoSyncEnabled !== undefined ? result.autoSyncEnabled : true;
+        autoSyncToggle.checked = autoSyncEnabled;
       }
     });
     
@@ -219,6 +355,36 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
           
           // Dispatch the event to update the top player visibility
           updateTopPlayerVisibility(isEnabled);
+          
+          // Double check after a small delay to ensure the state is properly applied
+          setTimeout(() => {
+            // Re-read from storage to verify
+            chrome.storage.local.get(['topPlayerEnabled'], (result) => {
+              console.log(`[Panel] Verifying top player state in storage: ${result.topPlayerEnabled ? 'enabled' : 'disabled'}`);
+              // If there's a mismatch, force update again
+              if (result.topPlayerEnabled !== isEnabled) {
+                console.log(`[Panel] State mismatch detected, correcting!`);
+                chrome.storage.local.set({ topPlayerEnabled: isEnabled });
+                updateTopPlayerVisibility(isEnabled);
+              }
+            });
+          }, 200);
+        });
+      });
+    }
+    
+    // Auto sync toggle
+    if (autoSyncToggle) {
+      autoSyncToggle.addEventListener('change', () => {
+        const isEnabled = autoSyncToggle.checked;
+        console.log(`[Panel] Auto sync toggle changed to: ${isEnabled ? 'enabled' : 'disabled'}`);
+        
+        // Immediately update the UI to match
+        autoSyncToggle.checked = isEnabled;
+        
+        // Save to storage with callback to ensure it's saved
+        chrome.storage.local.set({ autoSyncEnabled: isEnabled }, () => {
+          console.log(`[Panel] Auto sync setting saved to storage: ${isEnabled ? 'enabled' : 'disabled'}`);
         });
       });
     }
@@ -266,6 +432,13 @@ export function setupSettingsHandlers(panel: HTMLElement): void {
           updateSelectionButtonColor(defaults.selectionButtonColor);
           updateTopPlayerVisibility(defaults.topPlayerEnabled);
         });
+      });
+    }
+    
+    // Sync settings button
+    if (syncButton && syncStatus) {
+      syncButton.addEventListener('click', async () => {
+        await syncSettingsToSupabase(true);
       });
     }
   }, 100);

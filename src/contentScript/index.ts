@@ -415,18 +415,20 @@ class ExtensionController {
   }
 
   private setupKeyboardShortcuts(): void {
-    addKeyboardShortcuts(
-      () => this.togglePanel(),
-      () => this.togglePlayer()
-    );
+    // Add player toggle shortcut
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'p' && event.ctrlKey) {
+        this.togglePlayer();
+      }
+    });
   }
   
-  private togglePanel(): void {
+  private async togglePanel(): Promise<void> {
     // Check current panel state before toggling
     const wasPanelOpen = this.isPanelOpen;
     
-    // Toggle panel
-    this.panel.toggle();
+    // Toggle panel (now awaiting the async operation)
+    await this.panel.toggle();
     
     // Update panel state
     this.isPanelOpen = !wasPanelOpen;
@@ -525,54 +527,56 @@ class ExtensionController {
           return;
         }
         
-        // Close the panel
-        this.panel.toggle();
-        this.isPanelOpen = false;
-        
-        // Update player position
-        const player = document.getElementById('extension-side-player');
-        if (player) {
-          setTimeout(() => {
-            player.classList.remove('next-to-panel');
-          }, 50);
-        }
-        
-        // Update voice selector position if open
-        const voiceSelector = document.getElementById('extension-voice-selector');
-        if (voiceSelector) {
-          setTimeout(() => {
-            voiceSelector.classList.remove('panel-open');
-          }, 50);
-        }
-        
-        // Update voice styler position if open
-        const voiceStyler = document.getElementById('extension-voice-styler');
-        if (voiceStyler) {
-          setTimeout(() => {
-            voiceStyler.classList.remove('panel-open');
-          }, 50);
-        }
-        
-        // Get the settings button and change its icon back
-        if (settingsButton) {
-          // Add animation class
-          settingsButton.classList.add('settings-button-transition');
+        // Close the panel - use async IIFE to handle the async toggle
+        (async () => {
+          await this.panel.toggle();
+          this.isPanelOpen = false;
           
-          // Change icon after short delay to coordinate with animation
-          setTimeout(() => {
-            settingsButton.innerHTML = ICONS.settings;
-            settingsButton.setAttribute('data-state', 'closed');
-          }, 150);
+          // Update player position
+          const player = document.getElementById('extension-side-player');
+          if (player) {
+            setTimeout(() => {
+              player.classList.remove('next-to-panel');
+            }, 50);
+          }
           
-          // Remove animation class after animation completes
-          setTimeout(() => {
-            settingsButton.classList.remove('settings-button-transition');
-          }, 300);
-        }
-        
-        // Remove the document click listener
-        document.removeEventListener('mousedown', this.panelClickListener!);
-        this.panelClickListener = null;
+          // Update voice selector position if open
+          const voiceSelector = document.getElementById('extension-voice-selector');
+          if (voiceSelector) {
+            setTimeout(() => {
+              voiceSelector.classList.remove('panel-open');
+            }, 50);
+          }
+          
+          // Update voice styler position if open
+          const voiceStyler = document.getElementById('extension-voice-styler');
+          if (voiceStyler) {
+            setTimeout(() => {
+              voiceStyler.classList.remove('panel-open');
+            }, 50);
+          }
+          
+          // Get the settings button and change its icon back
+          if (settingsButton) {
+            // Add animation class
+            settingsButton.classList.add('settings-button-transition');
+            
+            // Change icon after short delay to coordinate with animation
+            setTimeout(() => {
+              settingsButton.innerHTML = ICONS.settings;
+              settingsButton.setAttribute('data-state', 'closed');
+            }, 150);
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+              settingsButton.classList.remove('settings-button-transition');
+            }, 300);
+          }
+          
+          // Remove the document click listener
+          document.removeEventListener('mousedown', this.panelClickListener!);
+          this.panelClickListener = null;
+        })();
       }
     };
     

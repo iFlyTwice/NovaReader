@@ -111,11 +111,6 @@ export function getProfileContent(): string {
             <p>Logged in as: <span id="user-email"></span></p>
             <button id="logout-btn" class="btn-secondary">Sign Out</button>
           </div>
-          
-          <div class="sync-controls">
-            <button id="sync-settings-btn" class="btn-primary">Sync Current Settings</button>
-            <div id="sync-status"></div>
-          </div>
         </div>
       </div>
     </div>

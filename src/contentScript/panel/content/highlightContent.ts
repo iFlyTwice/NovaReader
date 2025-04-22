@@ -15,8 +15,7 @@ export function getHighlightToListenContent(): string {
             <span class="slider"></span>
           </label>
         </div>
-        <p>Select any text on the page to hear it read aloud.</p>
-        <p>Use the player controls to adjust volume and playback speed.</p>
+        <p class="small-text">Select any text on the page to hear it read aloud using the player controls.</p>
       </div>
     </div>
     

@@ -5,7 +5,7 @@
   right: -350px !important; /* Start off-screen */
   width: 350px !important;
   height: 100vh !important;
-  background-color: #1c1c1c !important;
+  background-color: #18181b !important; /* Slightly darker background */
   color: #fff !important;
   /* Enhanced shadow effect with multiple layers */
   box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4),
@@ -143,45 +143,74 @@
 
 #extension-side-panel .panel-section {
   margin-bottom: 24px !important;
-  background-color: #2e2e2e !important;
-  border-radius: 8px !important;
-  padding: 16px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  background: linear-gradient(145deg, #2a2a2a, #323232) !important;
+  border-radius: 12px !important;
+  padding: 18px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+              0 1px 3px rgba(0, 0, 0, 0.2),
+              inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+#extension-side-panel .panel-section:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.35),
+              0 1px 5px rgba(0, 0, 0, 0.25),
+              inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+  transform: translateY(-1px) !important;
 }
 
 #extension-side-panel .panel-section-title {
-  font-size: 16px !important;
-  font-weight: normal !important;
-  margin-bottom: 12px !important;
-  color: #ccc !important;
+  font-size: 17px !important;
+  font-weight: 500 !important;
+  margin-bottom: 14px !important;
+  color: #f0f0f0 !important;
   font-family: 'Heiback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   letter-spacing: 0.5px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding-bottom: 8px !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+#extension-side-panel .panel-section-title::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: -1px !important;
+  left: 0 !important;
+  width: 40px !important;
+  height: 2px !important;
+  background: linear-gradient(90deg, #555, transparent) !important;
 }
 
 #extension-side-panel .panel-section-content {
   font-size: 14px !important;
-  color: #aaa !important;
-  line-height: 1.5 !important;
+  color: #bbb !important;
+  line-height: 1.6 !important;
+  padding-top: 4px !important;
 }
 
 /* Form controls styling */
 #extension-side-panel .form-group {
-  margin-bottom: 8px !important;
+  margin-bottom: 14px !important;
+  position: relative !important;
 }
 
 #extension-side-panel .form-label {
   display: block !important;
-  margin-bottom: 6px !important;
+  margin-bottom: 8px !important;
   font-size: 14px !important;
-  color: #ccc !important;
+  color: #ddd !important;
+  font-weight: 500 !important;
 }
 
 #extension-side-panel .form-control {
   width: 100% !important;
-  background-color: #3a3a3a !important;
+  background-color: rgba(50, 50, 50, 0.8) !important;
   border: 1px solid #444 !important;
-  border-radius: 6px !important;
-  padding: 8px 10px !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
   color: #fff !important;
   font-size: 14px !important;
   outline: none !important;
@@ -190,11 +219,13 @@
   margin: 0 !important;
   -webkit-appearance: none !important;
   appearance: none !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
 #extension-side-panel .form-control:focus {
-  border-color: #27272a !important;
-  box-shadow: 0 0 0 2px rgba(39, 39, 42, 0.2) !important;
+  border-color: #555 !important;
+  box-shadow: 0 0 0 2px rgba(70, 70, 80, 0.25),
+              inset 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Custom select styling */
@@ -242,25 +273,29 @@
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  margin-bottom: 12px !important;
+  margin-bottom: 16px !important;
+  padding: 8px 10px !important;
+  background-color: rgba(40, 40, 40, 0.5) !important;
+  border-radius: 8px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+#extension-side-panel .switch-container:hover {
+  background-color: rgba(50, 50, 50, 0.7) !important;
 }
 
 #extension-side-panel .switch-label {
   font-size: 14px !important;
-  color: #ccc !important;
+  color: #ddd !important;
+  font-weight: 400 !important;
 }
 
 #extension-side-panel .switch {
   position: relative !important;
   display: inline-block !important;
-  width: 44px !important;
+  width: 48px !important;
   height: 24px !important;
-}
-
-#extension-side-panel .switch input {
-  opacity: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
+  flex-shrink: 0 !important;
 }
 
 #extension-side-panel .slider {
@@ -270,9 +305,11 @@
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  background-color: #555 !important;
+  background-color: #3a3a3a !important;
   transition: .3s !important;
   border-radius: 24px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3),
+              0 1px 1px rgba(255, 255, 255, 0.05) !important;
 }
 
 #extension-side-panel .slider:before {
@@ -285,18 +322,15 @@
   background-color: white !important;
   transition: .3s !important;
   border-radius: 50% !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 #extension-side-panel input:checked + .slider {
-  background-color: #27272a !important;
-}
-
-#extension-side-panel input:focus + .slider {
-  box-shadow: 0 0 1px #27272a !important;
+  background: linear-gradient(45deg, #3b3b3b, #4a4a4a) !important;
 }
 
 #extension-side-panel input:checked + .slider:before {
-  transform: translateX(20px) !important;
+  transform: translateX(24px) !important;
 }
 
 /* Color picker styling */
@@ -338,45 +372,48 @@
 
 /* Button styles */
 #extension-side-panel .btn-primary {
-  background-color: #27272a !important; /* Zinc-800 - dark zinc color */
-  color: white !important;
-  border: none !important;
-  border-radius: 4px !important;
-  padding: 8px 12px !important;
-  font-size: 13px !important;
+  background: linear-gradient(to bottom, #323232, #272727) !important;
+  color: #fff !important;
+  border: 1px solid #444 !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 14px !important;
   cursor: pointer !important;
-  transition: background-color 0.2s !important;
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-  display: inline-block !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 #extension-side-panel .btn-primary:hover {
-  background-color: #3f3f46 !important; /* Zinc-700 - slightly lighter for hover state */
+  background: linear-gradient(to bottom, #3a3a3a, #323232) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4) !important;
 }
 
 #extension-side-panel .btn-secondary {
-  background-color: #3f3f46 !important; /* Zinc-700 */
-  color: white !important;
-  border: none !important;
-  border-radius: 4px !important;
-  padding: 8px 12px !important;
-  font-size: 13px !important;
+  background: rgba(60, 60, 60, 0.4) !important;
+  color: #ccc !important;
+  border: 1px solid #444 !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 14px !important;
   cursor: pointer !important;
-  transition: background-color 0.2s !important;
-  margin-top: 8px !important;
-  margin-bottom: 8px !important;
-  display: inline-block !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 #extension-side-panel .btn-secondary:hover {
-  background-color: #52525b !important; /* Zinc-600 - slightly lighter for hover state */
+  background: rgba(70, 70, 70, 0.6) !important;
+  color: #fff !important;
 }
 
 #extension-side-panel .small-text {
   font-size: 12px !important;
-  color: #888 !important;
+  color: #999 !important;
   margin-top: 4px !important;
+  line-height: 1.4 !important;
+  opacity: 0.9 !important;
+  font-style: italic !important;
 }
 
 #extension-side-panel #save-api-key {

@@ -17,12 +17,13 @@ import { getSettingsContent } from './content/settingsContent';
 
 // Import handlers
 import { checkAuthState, setupAuthHandlers } from './handlers/authHandlers';
-import { setupSettingsHandlers } from './handlers/settingsHandlers';
+import { setupSettingsHandlers, isAutoSyncEnabled, syncSettingsToSupabase } from './handlers/settingsHandlers';
 
 export class SidePanel {
   private panelId: string = 'extension-side-panel';
   private isOpen: boolean = false;
   private panelElement: HTMLElement | null = null;
+  private currentSection: string = 'dashboard';
 
   constructor() {
     // No need to inject styles separately as they're included in manifest
@@ -226,12 +227,21 @@ export class SidePanel {
     });
   }
 
-  public toggle(): void {
+  public async toggle(): Promise<void> {
     const panel = document.getElementById(this.panelId);
     
     if (!panel) {
       this.create();
       return;
+    }
+    
+    // If panel is open and we're on settings or highlight, check if we need to auto sync before closing
+    if (panel.classList.contains('open') && (this.currentSection === 'settings' || this.currentSection === 'highlight')) {
+      const shouldAutoSync = await isAutoSyncEnabled();
+      if (shouldAutoSync) {
+        console.log(`[Panel] Auto syncing settings before closing panel from ${this.currentSection} section`);
+        await syncSettingsToSupabase(false);
+      }
     }
     
     if (panel.classList.contains('open')) {
@@ -259,7 +269,19 @@ export class SidePanel {
   }
   
   // Update panel content based on selected section
-  private updatePanelContent(contentElement: HTMLElement, section: string): void {
+  private async updatePanelContent(contentElement: HTMLElement, section: string): Promise<void> {
+    // Check if navigating away from settings or highlight and if auto sync is needed
+    if ((this.currentSection === 'settings' || this.currentSection === 'highlight') && this.currentSection !== section) {
+      const shouldAutoSync = await isAutoSyncEnabled();
+      if (shouldAutoSync) {
+        console.log(`[Panel] Auto syncing settings before navigating away from ${this.currentSection} section`);
+        await syncSettingsToSupabase(false);
+      }
+    }
+    
+    // Update current section tracker
+    this.currentSection = section;
+    
     // Clear existing content
     contentElement.innerHTML = '';
     
@@ -278,6 +300,11 @@ export class SidePanel {
             console.log(`[Panel] Setting highlight toggle to ${result.highlightEnabled ? 'checked' : 'unchecked'} from storage`);
           }
         });
+        
+        // Set up event handlers for highlight section controls
+        if (this.panelElement) {
+          setupSettingsHandlers(this.panelElement);
+        }
         break;
       case 'profile':
         contentElement.innerHTML = getProfileContent();

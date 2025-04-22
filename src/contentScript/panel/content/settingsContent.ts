@@ -93,5 +93,23 @@ export function getSettingsContent(): string {
         <button id="reset-highlight-settings" class="btn-secondary">Reset to Defaults</button>
       </div>
     </div>
+    
+    <div class="panel-section" id="settings-sync-section">
+      <div class="panel-section-title">Account Sync</div>
+      <div class="panel-section-content">
+        <div class="switch-container">
+          <span class="switch-label">Auto Sync Settings</span>
+          <label class="switch">
+            <input type="checkbox" id="auto-sync-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="small-text">Automatically sync settings when navigating away or closing panel.</p>
+        
+        <button id="sync-settings-btn" class="btn-primary mt-3">Save & Sync Settings</button>
+        <div id="sync-status" class="mt-2"></div>
+        <p class="small-text">Save all current settings to your account to use across devices.</p>
+      </div>
+    </div>
   `;
 }

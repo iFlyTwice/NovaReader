@@ -316,18 +316,21 @@ export class SidePlayer {
   // Audio player event handlers
   private handlePlaybackStart(): void {
     this.isPlaying = true;
-    handlePlaybackStart(this.playButton);
+    this.setPlayButtonState('pause');
     
     // Start text highlighting if enabled
     if (this.highlightingEnabled) {
       this.textHighlighter.startHighlighting();
     }
+
+    // Update selection button state to speaking
+    dispatchSelectionButtonStateEvent('speaking');
   }
   
   private handlePlaybackEnd(): void {
     this.isPlaying = false;
     this.isPaused = false;
-    handlePlaybackEnd(this.playButton);
+    this.setPlayButtonState('play');
     
     // Stop text highlighting
     if (this.highlightingEnabled) {
@@ -339,7 +342,7 @@ export class SidePlayer {
   private handlePlaybackPause(): void {
     this.isPlaying = false;
     this.isPaused = true;
-    handlePlaybackPause(this.playButton);
+    this.setPlayButtonState('play');
     
     // Pause text highlighting instead of stopping it
     if (this.highlightingEnabled) {
@@ -348,7 +351,11 @@ export class SidePlayer {
   }
   
   private handlePlaybackError(error: string): void {
-    handlePlaybackError(error, this.playButton);
+    logger.error(`Playback error: ${error}`);
+    this.setPlayButtonState('play');
+    if (this.playButton) {
+      this.playButton.classList.remove('active');
+    }
   }
   
   private updateTimeDisplay(currentTime: number, duration: number): void {
@@ -726,6 +733,9 @@ export class SidePlayer {
     this.currentText = text;
     
     try {
+      // Set play button to loading state
+      this.setPlayButtonState('loading');
+      
       // First, get the selected voice from storage (or use default if not found)
       const voiceId = await getSelectedVoice(this.defaultVoiceId);
       let modelId = this.defaultModelId;
@@ -784,6 +794,8 @@ export class SidePlayer {
     } catch (error) {
       logger.error(`Error starting playback: ${error}`);
       this.handlePlaybackError(`Failed to start playback: ${error}`);
+      // Reset play button state on error
+      this.setPlayButtonState('play');
     }
   }
   
@@ -963,5 +975,25 @@ export class SidePlayer {
 
   public getCurrentText(): string {
     return this.currentText;
+  }
+
+  private setPlayButtonState(state: 'play' | 'pause' | 'loading'): void {
+    if (!this.playButton) return;
+
+    switch (state) {
+      case 'play':
+        this.playButton.innerHTML = ICONS.play;
+        this.playButton.classList.remove('loading', 'active');
+        break;
+      case 'pause':
+        this.playButton.innerHTML = ICONS.pause;
+        this.playButton.classList.remove('loading');
+        this.playButton.classList.add('active');
+        break;
+      case 'loading':
+        this.playButton.innerHTML = ICONS.loading;
+        this.playButton.classList.add('loading', 'active');
+        break;
+    }
   }
 }

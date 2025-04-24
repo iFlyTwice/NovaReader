@@ -26,6 +26,7 @@ METHODOLOGY FOR PROJECT ANALYSIS AND MODIFICATION:
    - After each tool call, evaluate results and reconsider next steps
    - After reading files, use sequential thinking to process information
    - After modifying files (write_file, edit_block), verify changes fit with overall structure
+   - Avoid messing up current implementations that will mess up the UI unless it's specifically asked for, or avoid breaking code that has a understandable logic that makes sense. Don't break the code if the logic makes sense. 
 
 4. VERIFICATION PHASE:
    - After completing operations, systematically verify all affected components

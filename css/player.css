@@ -273,3 +273,38 @@
     background-color: rgba(0, 0, 0, 0.05);
   }
 }
+
+/* Loading animation for player buttons */
+.player-button.loading {
+  background-color: #27272a !important; /* Keep the same dark color */
+  cursor: default;
+}
+
+.player-button.loading svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Remove the pulse animation as it's not used in the selection button */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

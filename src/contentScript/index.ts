@@ -52,6 +52,7 @@ class ExtensionController {
     this.player = new SidePlayer();
     this.panel = new SidePanel();
     this.voiceSelector = new VoiceSelector();
+    this.voiceSelector.setSidePlayer(this.player);
     this.voiceStyler = new VoiceStyler();
     this.selectionButton = new SelectionButton();
     this.topPlayer = new TopPlayer();

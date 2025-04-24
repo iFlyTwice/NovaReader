@@ -13,6 +13,7 @@ import { createLogger } from '../../utils/logger';
 // Import language data
 import { ALL_LANGUAGES, getLanguageCodeFromLocale } from './utils/supportedLanguages';
 import { LanguageDropdown } from './utils/LanguageDropdown';
+import { SidePlayer } from '../player/SidePlayer';
 
 // Create a logger instance for this module
 const logger = createLogger('VoiceSelector');
@@ -27,6 +28,7 @@ export class VoiceSelector {
   private selectedLanguage: string = 'all'; // Default to all languages
   private languageDropdown: LanguageDropdown | null = null;
   private languageButtonElement: HTMLElement | null = null;
+  private sidePlayer: SidePlayer | null = null;
   
   // Voice options from TTS API
   private voices: Voice[] = [];
@@ -439,44 +441,29 @@ export class VoiceSelector {
     const saveButton = document.createElement('div');
     saveButton.className = 'voice-selector-save-button';
     saveButton.textContent = 'Save Selection';
-    saveButton.addEventListener('click', () => {
+    saveButton.addEventListener('click', async () => {
       const selectedVoice = document.querySelector('.voice-option.active');
       if (selectedVoice) {
         const voiceId = selectedVoice.getAttribute('data-voice-id');
         if (voiceId) {
-          logger.info(`Saving selected voice: ${voiceId}`);
-          
-          // Get voice info for display
           const voiceName = selectedVoice.querySelector('.voice-name')?.textContent || '';
           const voiceDetails = selectedVoice.querySelector('.voice-details')?.textContent || '';
           
-          // Update the current voice display
-          updateCurrentVoiceDisplay(voiceName, voiceDetails, TTS_PROVIDER);
-          
-          // Save the selection to Chrome storage
-          chrome.storage.local.set({ 
-            selectedVoiceId: voiceId,
-            selectedVoiceName: voiceName,
-            selectedVoiceDetails: voiceDetails,
-            ttsProvider: TTS_PROVIDER
-          }, () => {
-            logger.info('Voice selection saved to storage');
-            
-            // Dispatch an event to notify other components of the voice change
-            const event = new CustomEvent('voice-selected', { 
-              detail: { voiceId, voiceName, voiceDetails, provider: TTS_PROVIDER } 
-            });
-            document.dispatchEvent(event);
-            
-            // Don't close the selector, just show the current selection at the top
-            // this.remove();
+          try {
+            await this.handleVoiceSelection(voiceId, voiceName, voiceDetails);
             
             // Add visual feedback for save button
             saveButton.textContent = 'Selection Saved!';
             setTimeout(() => {
               saveButton.textContent = 'Save Selection';
             }, 1500);
-          });
+          } catch (error) {
+            logger.error('Error handling voice selection:', error);
+            saveButton.classList.add('error');
+            setTimeout(() => {
+              saveButton.classList.remove('error');
+            }, 500);
+          }
         }
       } else {
         logger.warn('No voice selected');
@@ -573,6 +560,48 @@ export class VoiceSelector {
       }
       
       logger.info(`Voice selector updated position. Panel open: ${isPanelOpen}`);
+    }
+  }
+
+  public setSidePlayer(player: SidePlayer): void {
+    this.sidePlayer = player;
+  }
+
+  private async handleVoiceSelection(voiceId: string, voiceName: string, voiceDetails: string): Promise<void> {
+    logger.info(`Saving selected voice: ${voiceId}`);
+    
+    // Update the current voice display
+    updateCurrentVoiceDisplay(voiceName, voiceDetails, TTS_PROVIDER);
+    
+    // Store the current text and playback state if player exists
+    const playbackState = this.sidePlayer?.getPlaybackState() || { isPlaying: false, isPaused: false };
+    const currentText = this.sidePlayer?.getCurrentText() || '';
+    
+    // Stop current playback if any
+    if (playbackState.isPlaying || playbackState.isPaused) {
+      this.sidePlayer?.stopPlayback();
+    }
+    
+    // Save the selection to Chrome storage
+    await chrome.storage.local.set({ 
+      selectedVoiceId: voiceId,
+      selectedVoiceName: voiceName,
+      selectedVoiceDetails: voiceDetails,
+      ttsProvider: TTS_PROVIDER
+    });
+    
+    logger.info('Voice selection saved to storage');
+    
+    // Dispatch an event to notify other components of the voice change
+    const event = new CustomEvent('voice-selected', { 
+      detail: { voiceId, voiceName, voiceDetails, provider: TTS_PROVIDER } 
+    });
+    document.dispatchEvent(event);
+    
+    // If there was text being played, restart playback with new voice
+    if (playbackState.isPlaying && currentText && this.sidePlayer) {
+      logger.info('Restarting playback with new voice');
+      await this.sidePlayer.startPlayback(currentText);
     }
   }
 }

@@ -952,4 +952,16 @@ export class SidePlayer {
       this.isPaused = false;
     }
   }
+
+  // Public methods to access playback state
+  public getPlaybackState(): { isPlaying: boolean; isPaused: boolean } {
+    return {
+      isPlaying: this.isPlaying,
+      isPaused: this.isPaused
+    };
+  }
+
+  public getCurrentText(): string {
+    return this.currentText;
+  }
 }
